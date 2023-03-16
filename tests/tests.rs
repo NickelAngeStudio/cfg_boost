@@ -1,5 +1,5 @@
 extern crate target_cfg;
-use target_cfg::cfg_target;
+use target_cfg::{ target_cfg, cfg_target };
 
 #[doc(hidden)]
 #[cfg_target(x86_64:ar & desktop | (mobile))] 
@@ -7,6 +7,49 @@ use target_cfg::cfg_target;
 /// Bdkd dskd
 fn test_fnt() {
     println!("foo1");
+}
+
+target_cfg!{
+    
+    
+    (linux:os & wasm:fm) => {
+		/// Cmt l1
+        /// l2
+        /// l3
+        /// ```
+        /// let a = 16;
+        /// ```
+        pub fn inside()  {
+            println!("inside me");
+
+            if true {
+                if !false {
+                    println!("Wow, this is useless!");
+                }
+            }
+        }
+
+        /// Cmt ll1
+        /// ll2
+        /// ll3
+        /// ```
+        /// let ab = 136;
+        /// ```
+        pub fn inside_me_2()  {
+            println!("inside me");
+
+            if true {
+                if !false {
+                    println!("Wow, this is useless!");
+                }
+            }
+        }
+        
+	},
+	() => {
+	
+	},
+    
 }
 
 

@@ -2,66 +2,26 @@
 
 use std::{env, cell::RefCell, rc::Rc};
 
-use crate::syntax::{SyntaxNodeType, SyntaxTreeNode};
+use crate::{syntax::{SyntaxNodeType, SyntaxTreeNode}, errors::SyntaxParseError};
 
-
-/// Possible parsing errors.
-pub enum SyntaxParseError {
-    /// !!, && and || are not accepted.
-    DoubleOperator(usize),
-
-    /// Mismatched parentheses
-    MismatchedParentheses(usize),
-
-    /// Missing operator (happens when a leaf contains a space)
-    MissingOperator,
-
-    /// Empty node due to missing variable.
-    EmptyNode,
-
-    /// Invalid character used
-    InvalidCharacter(char, usize),
-
-    /// Alias written is not found
-    AliasNotFound(String),
-
-    /// Invalid configuration predicate
-    InvalidConfigurationPredicate(String)
-}
-
-/// Error message implementation.
-impl SyntaxParseError {
-    pub fn message(&self, tokens : &str) -> String {
-        match self {
-            SyntaxParseError::DoubleOperator(pos) => format!("Invalid double operator for `{:?}` at position {}.", tokens, pos),
-            SyntaxParseError::MismatchedParentheses(pos) => format!("Mismatched parentheses for `{:?}` at position {}.", tokens, pos),
-            SyntaxParseError::EmptyNode =>  format!("Empty node generated from attributes `{:?}`. Are you missing a statement between separator?", tokens),
-            SyntaxParseError::InvalidCharacter(c, pos) => format!("Invalid character `{}` for `{:?}` at position {}.", c, tokens, pos),
-            SyntaxParseError::MissingOperator => format!("Operator `&` or '|' missing for `{:?}`.", tokens),
-            SyntaxParseError::AliasNotFound(alias) => format!("Alias `{}` has no match! Is it added in config.toml as `target_cfg-{}`?", alias, alias),
-            SyntaxParseError::InvalidConfigurationPredicate(cfg_prd) => format!("Configuration predicate `{}` has no match! Is it added in config.toml as `target_cfg_predicate-{}`?", cfg_prd, cfg_prd),
-        }
-    }
-}
-
-/// Parse tokens to generate #cfg type.
+/// Parse tokens to generate configuration predicate.
 /// 
 /// Error(s)
-/// Returns Err([SyntaxNodeError::InvalidConfigurationType]) if type not defined.
+/// Returns Err([SyntaxParseError::InvalidConfigurationPredicate]) if predicate not defined.
 #[inline(always)]
 pub fn parse_cfg_predicate(tokens : &str) -> Result<String, SyntaxParseError> {
 
-    // 1. Extract label and type from tokens
+    // 1. Extract label and predicate from tokens
     match tokens.find(":") {
         Some(position) => {
             let label = tokens[0..position].trim();
             let cfg_opt = tokens[position + 1..].trim();
 
-            // 2. Try to match environment variable to see if type was defined in config.toml.
-            match env::var(format!("target_cfg_type-{}", cfg_opt)) {
+            // 2. Try to match environment variable to see if predicate was defined in config.toml.
+            match env::var(format!("target_cfg_predicate-{}", cfg_opt)) {
                 Ok(cfg_value) => Ok(String::from(cfg_value.replace("{}", label))),
-                Err(_) => match cfg_opt {   // 2.2 Try to match default type
-                        // Default configuration types
+                Err(_) => match cfg_opt {   // 2.2 Try to match default predicate
+                        // Default configuration predicates
                         "ar" => Ok(format!("target_arch = \"{}\"", label)),
                         "tf" => Ok(format!("target_feature = \"{}\"", label)),
                         "os" => Ok(format!("target_os = \"{}\"", label)),
@@ -89,7 +49,7 @@ pub fn parse_cfg_predicate(tokens : &str) -> Result<String, SyntaxParseError> {
 /// Parse label to generate alias content.
 /// 
 /// Error(s)
-/// Returns Err([SyntaxNodeError::AliasNotFound]) if alias not defined.
+/// Returns Err([SyntaxParseError::AliasNotFound]) if alias not defined.
 #[inline(always)]
 pub fn parse_alias_from_label(label : &str) -> Result<String, SyntaxParseError> {
 
@@ -123,7 +83,7 @@ pub fn parse_alias_from_label(label : &str) -> Result<String, SyntaxParseError> 
 /// Parse tokens to verify if expression is not.
 /// 
 /// Error(s)
-/// Returns Err([SyntaxNodeError::EmptyNode]) if tokens are empty.
+/// Returns Err([SyntaxParseError::EmptyNode]) if tokens are empty.
 #[inline(always)]
 pub fn parse_is_not(tokens: &str) -> Result<bool, SyntaxParseError> {
 
@@ -144,9 +104,9 @@ pub fn parse_is_not(tokens: &str) -> Result<bool, SyntaxParseError> {
 /// Parse tokens and strip it of outer parentheses.
 /// 
 /// Error(s)
-/// Returns Err([SyntaxNodeError::EmptyNode]) if tokens are empty.
+/// Returns Err([SyntaxParseError::EmptyNode]) if tokens are empty.
 /// 
-/// Returns Err([SyntaxNodeError::MismatchedParentheses]) if parentheses are mismatched.
+/// Returns Err([SyntaxParseError::MismatchedParentheses]) if parentheses are mismatched.
 #[inline(always)]
 pub fn parse_strip_parentheses(tokens:&str) -> Result<&str, SyntaxParseError> {
 
@@ -191,7 +151,7 @@ pub fn parse_strip_parentheses(tokens:&str) -> Result<&str, SyntaxParseError> {
 /// Returns Ok(false) if no double operator.
 /// 
 /// Error(s)
-/// Returns Err([SyntaxNodeError::DoubleOperator]) if any double operator.
+/// Returns Err([SyntaxParseError::DoubleOperator]) if any double operator.
 #[inline(always)]
 pub fn parse_double_operators(tokens:&str) -> Result<bool, SyntaxParseError>{
 
@@ -284,7 +244,7 @@ pub fn parse_node_type(tokens:&str)-> Result<SyntaxNodeType, SyntaxParseError> {
 /// Will panic! if an alias is not found.
 /// Will panic! if tokens is empty.
 #[inline(always)]
-pub(crate) fn parse_leaf(tokens: &str) -> Rc<RefCell<SyntaxTreeNode>> {
+pub(crate) fn parse_leaf(tokens: &str) -> Result<Rc<RefCell<SyntaxTreeNode>>, SyntaxParseError> {
 
     match parse_is_not(tokens){       // If leaf, verify if negative, strip outer parentheses and note symbol.
         Ok(is_not) => {
@@ -292,7 +252,7 @@ pub(crate) fn parse_leaf(tokens: &str) -> Rc<RefCell<SyntaxTreeNode>> {
                 Some(_) => {
                     match parse_strip_parentheses(tokens) {
                         Ok(token_strip) => SyntaxTreeNode::generate_syntax_node(token_strip, is_not),
-                        Err(err) => panic!("{}", err.message(tokens)),
+                        Err(err) => Err(err),
                     }
                 },
                 None => {       // End leaf, return node.
@@ -303,7 +263,7 @@ pub(crate) fn parse_leaf(tokens: &str) -> Rc<RefCell<SyntaxTreeNode>> {
                     } else {
                         // Verify if alias
                         match tokens.find(":") {
-                            Some(_) => SyntaxTreeNode::new(None, None, SyntaxNodeType::LEAF(String::from(label)), is_not),
+                            Some(_) => Ok(SyntaxTreeNode::new(None, None, SyntaxNodeType::LEAF(String::from(label)), is_not)),
 
                             // Unwrap alias
                             None => 

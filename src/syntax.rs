@@ -1,7 +1,7 @@
 // Syntax tree used to generate configuration from TokenStream.
 
 use std::{cell::RefCell, rc::Rc};
-use crate::parse::{parse_cfg_predicate, parse_double_operators, parse_node_type, parse_leaf};
+use crate::{parse::{parse_cfg_predicate, parse_double_operators, parse_node_type, parse_leaf}, errors::SyntaxParseError};
 
 
 /// Syntax tree node used to parse attribute tokens.
@@ -38,17 +38,16 @@ impl SyntaxTreeNode {
     /// Panic(s)
     /// Will panic is tokens contains any double operators (&&, ||, !!)
     #[inline(always)]
-    pub fn generate_tree(tokens: &str) -> Rc<RefCell<SyntaxTreeNode>> {
+    pub fn generate_tree(tokens: &str) -> Result<Rc<RefCell<SyntaxTreeNode>>, SyntaxParseError> {
 
         match parse_double_operators(tokens){
             Ok(_) => {
-                // Root node
-                let root = Self::generate_syntax_node(&tokens.trim(), false);
-
-                // Return tree
-                root
+                match Self::generate_syntax_node(&tokens.trim(), false) {
+                    Ok(root) => Ok(root),
+                    Err(err) => Err(err),
+                }
             },
-            Err(err) => panic!("{}", err.message(tokens)),
+            Err(err) => Err(err),
         }
     }
 
@@ -91,7 +90,7 @@ impl SyntaxTreeNode {
     /// Will panic! if an alias is not found.
     /// Will panic! if tokens is empty.
     #[inline(always)]
-    pub fn generate_syntax_node(tokens: &str, is_not : bool) -> Rc<RefCell<SyntaxTreeNode>> {
+    pub fn generate_syntax_node(tokens: &str, is_not : bool) -> Result<Rc<RefCell<SyntaxTreeNode>>, SyntaxParseError> {
 
         // Separate node A from Node B and extract leaf.
         match parse_node_type(tokens){
@@ -100,14 +99,28 @@ impl SyntaxTreeNode {
                     match node_type { // Match node types
                         //If separator, split left and right
                         SyntaxNodeType::ANY(position) => {
-                            Self::new(Some(Self::generate_syntax_node(&tokens[0..position], false)), 
-                                Some(Self::generate_syntax_node(&tokens[position + 1..], false)),
-                                node_type, is_not)
+                            match Self::generate_syntax_node(&tokens[0..position], false) {
+                                Ok(left) =>  
+                                    match Self::generate_syntax_node(&tokens[position + 1..], false) {
+                                        Ok(right) => {
+                                            Ok(Self::new(Some(left), Some(right), node_type, is_not))
+                                        },
+                                        Err(err) => Err(err),
+                                    },
+                                Err(err) => Err(err),
+                            }
                         },
                         SyntaxNodeType::ALL(position) => {
-                            Self::new(Some(Self::generate_syntax_node(&tokens[0..position], false)), 
-                                Some(Self::generate_syntax_node(&tokens[position + 1..], false)),
-                                node_type, is_not)
+                            match Self::generate_syntax_node(&tokens[0..position], false) {
+                                Ok(left) =>  
+                                    match Self::generate_syntax_node(&tokens[position + 1..], false) {
+                                        Ok(right) => {
+                                            Ok(Self::new(Some(left), Some(right), node_type, is_not))
+                                        },
+                                        Err(err) => Err(err),
+                                    },
+                                Err(err) => Err(err),
+                            }
                         },
                         SyntaxNodeType::LEAF(_) => parse_leaf(tokens),
                     }
