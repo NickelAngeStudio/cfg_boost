@@ -1,0 +1,26 @@
+[env]
+################################
+# Default `target_cfg` aliases #
+################################
+# target_cfg-linux = { value = "linux:os", force = false }
+# target_cfg-windows = { value = "windows:os", force = false }
+# target_cfg-macos = { value = "macos:os", force = false }
+# target_cfg-android = { value = "android:os", force = false }
+# target_cfg-ios = { value = "ios:os", force = false }
+# target_cfg-wasm = { value = "wasm:fm", force = false }
+# target_cfg-desktop = { value = "linux:os | windows:os | macos:os", force = false }
+# target_cfg-mobile = { value = "android:os | ios:os", force = false }
+
+############################################
+# Default `target_cfg` configuration types #
+############################################
+# target_cfg_type-ar = { value = "target_arch = \"{}\"", force = true } 
+# target_cfg_type-os = { value = "target_os = \"{}\"", force = true } 
+# target_cfg_type-fm = { value = "target_family = \"{}\"", force = true } 
+# target_cfg_type-ev = { value = "target_env = \"{}\"", force = true } 
+# target_cfg_type-ed = { value = "target_endian = \"{}\"", force = true } 
+# target_cfg_type-pw = { value = "target_pointer_width = \"{}\"", force = true } 
+# target_cfg_type-vn = { value = "target_vendor = \"{}\"", force = true } 
+# target_cfg_type-at = { value = "target_has_atomic = \"{}\"", force = true } 
+# target_cfg_type-pn = { value = "panic = \"{}\"", force = true }
+# target_cfg_type-ft = { value = "feature = \"{}\"", force = true }
