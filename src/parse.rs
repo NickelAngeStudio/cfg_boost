@@ -25,8 +25,8 @@ pub enum SyntaxParseError {
     /// Alias written is not found
     AliasNotFound(String),
 
-    /// Invalid configuration type
-    InvalidConfigurationType(String)
+    /// Invalid configuration predicate
+    InvalidConfigurationPredicate(String)
 }
 
 /// Error message implementation.
@@ -39,7 +39,7 @@ impl SyntaxParseError {
             SyntaxParseError::InvalidCharacter(c, pos) => format!("Invalid character `{}` for `{:?}` at position {}.", c, tokens, pos),
             SyntaxParseError::MissingOperator => format!("Operator `&` or '|' missing for `{:?}`.", tokens),
             SyntaxParseError::AliasNotFound(alias) => format!("Alias `{}` has no match! Is it added in config.toml as `target_cfg-{}`?", alias, alias),
-            SyntaxParseError::InvalidConfigurationType(cfg_type) => format!("Configuration type `{}` has no match! Is it added in config.toml as `target_cfg_type-{}`?", cfg_type, cfg_type),
+            SyntaxParseError::InvalidConfigurationPredicate(cfg_prd) => format!("Configuration predicate `{}` has no match! Is it added in config.toml as `target_cfg_predicate-{}`?", cfg_prd, cfg_prd),
         }
     }
 }
@@ -49,7 +49,7 @@ impl SyntaxParseError {
 /// Error(s)
 /// Returns Err([SyntaxNodeError::InvalidConfigurationType]) if type not defined.
 #[inline(always)]
-pub fn parse_cfg_type(tokens : &str) -> Result<String, SyntaxParseError> {
+pub fn parse_cfg_predicate(tokens : &str) -> Result<String, SyntaxParseError> {
 
     // 1. Extract label and type from tokens
     match tokens.find(":") {
@@ -75,13 +75,13 @@ pub fn parse_cfg_type(tokens : &str) -> Result<String, SyntaxParseError> {
                         "ft" => Ok(format!("feature = \"{}\"", label)),
         
                         // Not found, raise error.
-                        _ => Err(SyntaxParseError::InvalidConfigurationType(String::from(cfg_opt))),
+                        _ => Err(SyntaxParseError::InvalidConfigurationPredicate(String::from(cfg_opt))),
                     },
             }
         },
 
         // Should never happen but good to have in hand
-        None => Err(SyntaxParseError::InvalidConfigurationType(String::from(tokens))),
+        None => Err(SyntaxParseError::InvalidConfigurationPredicate(String::from(tokens))),
     } 
 
 }
@@ -311,7 +311,7 @@ pub(crate) fn parse_leaf(tokens: &str) -> Rc<RefCell<SyntaxTreeNode>> {
                                     // Alias found, unwrap it.
                                     Ok(alias) => SyntaxTreeNode::generate_syntax_node(&alias, is_not),
 
-                                    // This will cause Rust-analyzer panic! error if using custom alias and type.
+                                    // Alias not found, panic!.
                                     Err(err) => panic!("{}", err.message(tokens)),
                                 },
                         }
