@@ -10,6 +10,7 @@ exclude = [
     ".git/*",
     ".github/*",
     ".gitignore",
+    "dep_tag.png",
 ]
 
 

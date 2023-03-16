@@ -1,7 +1,7 @@
 // Syntax tree used to generate configuration from TokenStream.
 
 use std::{cell::RefCell, rc::Rc};
-use crate::parse::{parse_cfg_type, parse_double_operators, parse_node_type, parse_leaf};
+use crate::parse::{parse_cfg_predicate, parse_double_operators, parse_node_type, parse_leaf};
 
 
 /// Syntax tree node used to parse attribute tokens.
@@ -55,7 +55,7 @@ impl SyntaxTreeNode {
     /// Parse target attribute from tree into a string.
     /// 
     /// # Panic(s)
-    /// Will panic if any SyntaxParseError::InvalidConfigurationType.
+    /// Will panic if any SyntaxParseError::InvalidConfigurationPredicate.
     #[inline(always)]
     pub fn target_cfg_to_string(&self) -> String {
 
@@ -73,7 +73,7 @@ impl SyntaxTreeNode {
                     format!("all({}, {})", self.left.as_ref().unwrap().clone().as_ref().borrow().target_cfg_to_string(), self.right.as_ref().unwrap().clone().as_ref().borrow().target_cfg_to_string())
                 },
             SyntaxNodeType::LEAF(label) => 
-                match parse_cfg_type(label) {
+                match parse_cfg_predicate(label) {
                     Ok(value) => if self.is_not {
                         format!("not({})", value)
                         } else {
