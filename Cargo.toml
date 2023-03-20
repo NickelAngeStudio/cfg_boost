@@ -20,7 +20,6 @@ proc-macro = true
 [dependencies]
 
 
-
 [package.metadata.docs.rs]
 # Reference : https://stackoverflow.com/questions/61417452/how-to-get-a-feature-requirement-tag-in-the-documentation-generated-by-cargo-do
 # Enable unstable features in the documentation

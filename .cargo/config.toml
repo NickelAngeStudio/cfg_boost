@@ -11,16 +11,17 @@
 # target_cfg-desktop = { value = "linux:os | windows:os | macos:os", force = false }
 # target_cfg-mobile = { value = "android:os | ios:os", force = false }
 
-############################################
-# Default `target_cfg` configuration types #
-############################################
-# target_cfg_type-ar = { value = "target_arch = \"{}\"", force = true } 
-# target_cfg_type-os = { value = "target_os = \"{}\"", force = true } 
-# target_cfg_type-fm = { value = "target_family = \"{}\"", force = true } 
-# target_cfg_type-ev = { value = "target_env = \"{}\"", force = true } 
-# target_cfg_type-ed = { value = "target_endian = \"{}\"", force = true } 
-# target_cfg_type-pw = { value = "target_pointer_width = \"{}\"", force = true } 
-# target_cfg_type-vn = { value = "target_vendor = \"{}\"", force = true } 
-# target_cfg_type-at = { value = "target_has_atomic = \"{}\"", force = true } 
-# target_cfg_type-pn = { value = "panic = \"{}\"", force = true }
-# target_cfg_type-ft = { value = "feature = \"{}\"", force = true }
+#################################################
+# Default `target_cfg` configuration predicates #
+#################################################
+# target_cfg_predicate-ar = { value = "target_arch = \"{}\"", force = true } 
+# target_cfg_predicate-tf = { value = "target_feature = "{}"", force = true }
+# target_cfg_predicate-os = { value = "target_os = \"{}\"", force = true } 
+# target_cfg_predicate-fm = { value = "target_family = \"{}\"", force = true } 
+# target_cfg_predicate-ev = { value = "target_env = \"{}\"", force = true } 
+# target_cfg_predicate-ed = { value = "target_endian = \"{}\"", force = true } 
+# target_cfg_predicate-pw = { value = "target_pointer_width = \"{}\"", force = true } 
+# target_cfg_predicate-vn = { value = "target_vendor = \"{}\"", force = true } 
+# target_cfg_predicate-at = { value = "target_has_atomic = \"{}\"", force = true } 
+# target_cfg_predicate-pn = { value = "panic = \"{}\"", force = true }
+# target_cfg_predicate-ft = { value = "feature = \"{}\"", force = true }
