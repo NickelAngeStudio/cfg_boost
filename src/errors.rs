@@ -1,11 +1,5 @@
 /// Possible target_cfg errors.
-pub enum SyntaxParseError {
-    /// !!, && and || are not accepted.
-    DoubleOperator(usize),
-
-    /// Mismatched parentheses
-    MismatchedParentheses(usize),
-
+pub enum TargetCfgError {
     /// Missing operator (happens when a leaf contains a space)
     MissingOperator,
 
@@ -13,26 +7,32 @@ pub enum SyntaxParseError {
     EmptyNode,
 
     /// Invalid character used
-    InvalidCharacter(char, usize),
+    InvalidCharacter(char),
 
     /// Alias written is not found
     AliasNotFound(String),
 
     /// Invalid configuration predicate
-    InvalidConfigurationPredicate(String)
+    InvalidConfigurationPredicate(String),
+
+    /// Cannot fetch rustc conditional configuration
+    RustcConditionalCfgError,
+
+    /// Happens when a predicate has an invalid format
+    InvalidPredicateFormat,
 }
 
 /// Error message implementation.
-impl SyntaxParseError {
+impl TargetCfgError {
     pub fn message(&self, tokens : &str) -> String {
         match self {
-            SyntaxParseError::DoubleOperator(pos) => format!("Invalid double operator for `{:?}` at position {}.", tokens, pos),
-            SyntaxParseError::MismatchedParentheses(pos) => format!("Mismatched parentheses for `{:?}` at position {}.", tokens, pos),
-            SyntaxParseError::EmptyNode =>  format!("Empty node generated from attributes `{:?}`. Are you missing a statement between separator?", tokens),
-            SyntaxParseError::InvalidCharacter(c, pos) => format!("Invalid character `{}` for `{:?}` at position {}.", c, tokens, pos),
-            SyntaxParseError::MissingOperator => format!("Operator `&` or '|' missing for `{:?}`.", tokens),
-            SyntaxParseError::AliasNotFound(alias) => format!("Alias `{}` has no match! Is it added in config.toml as `target_cfg-{}`?", alias, alias),
-            SyntaxParseError::InvalidConfigurationPredicate(cfg_prd) => format!("Configuration predicate `{}` has no match! Is it added in config.toml as `target_cfg_predicate-{}`?", cfg_prd, cfg_prd),
+            TargetCfgError::EmptyNode =>  format!("Empty node generated from attributes. Are you missing a statement between separator?"),
+            TargetCfgError::InvalidCharacter(c) => format!("Invalid character `{}` for `{:?}`.", c, tokens),
+            TargetCfgError::MissingOperator => format!("Operator `&` or '|' missing for `{:?}`. Target must not contain space.", tokens),
+            TargetCfgError::AliasNotFound(alias) => format!("Alias `{}` has no match! Is it added in config.toml as `target_cfg-{}`?", alias, alias),
+            TargetCfgError::InvalidConfigurationPredicate(cfg_prd) => format!("Configuration predicate `{}` has no match! Is it added in config.toml as `target_cfg_predicate-{}`?", cfg_prd, cfg_prd),
+            TargetCfgError::RustcConditionalCfgError => format!("Cannot fetch rustc conditional configuration!"),
+            TargetCfgError::InvalidPredicateFormat => format!("Invalid predicate format for `{:?}`.", tokens),
         }
     }
 }
