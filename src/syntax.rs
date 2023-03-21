@@ -3,7 +3,7 @@
 use std::{rc::Rc, env, process::Command};
 use proc_macro::{TokenStream, TokenTree};
 
-use crate::{errors::TargetCfgError, extract_symbol};
+use crate::{errors::TargetCfgError, tools::extract_symbol};
 
 /// SyntaxTreeNode in a RC 
 pub(crate) type Node = Rc<SyntaxTreeNode>;
@@ -32,8 +32,8 @@ impl ToString for SyntaxTreeNode {
     fn to_string(&self) -> String {
         match self {
             SyntaxTreeNode::NOT(node) => format!("NOT({})", node.to_string()),
-            SyntaxTreeNode::ANY(left_node, right_node) => format!("\nANY({},{})", left_node.to_string(), right_node.to_string()),
-            SyntaxTreeNode::ALL(left_node, right_node) => format!("\nALL({},{})", left_node.to_string(), right_node.to_string()),
+            SyntaxTreeNode::ANY(left_node, right_node) => format!("ANY({},{})", left_node.to_string(), right_node.to_string()),
+            SyntaxTreeNode::ALL(left_node, right_node) => format!("ALL({},{})", left_node.to_string(), right_node.to_string()),
             SyntaxTreeNode::LEAF(label) => 
                 match parse_cfg_predicate(&label.as_str()) {
                     Ok(predicate) => format!("{}", predicate),
@@ -59,6 +59,20 @@ impl SyntaxTreeNode {
                 Ok(label) => is_predicate_in_cfg(&label),
                 Err(err) => panic!("{}", err.message(label)),
             },
+        }
+    }
+
+    /// This function return a string with each node value and evaluation.
+    pub fn leaf_node_eval_to_string(&self) -> String {
+        match self {
+            SyntaxTreeNode::NOT(node) => format!("{}", node.leaf_node_eval_to_string()),
+            SyntaxTreeNode::ANY(left_node, right_node) => format!("{}, {}", left_node.leaf_node_eval_to_string(), right_node.leaf_node_eval_to_string()),
+            SyntaxTreeNode::ALL(left_node, right_node) => format!("{}, {}", left_node.leaf_node_eval_to_string(), right_node.leaf_node_eval_to_string()),
+            SyntaxTreeNode::LEAF(label) => 
+                match parse_cfg_predicate(&label.as_str()) {
+                    Ok(predicate) => format!("`{}` : `{}`", predicate, is_predicate_in_cfg(&predicate).to_string()),
+                    Err(err) => panic!("{}", err.message(label)),
+                },
         }
     }
 

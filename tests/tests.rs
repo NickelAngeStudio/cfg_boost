@@ -6,58 +6,41 @@ pub fn cfg_target_test() {
     println!("Is available");
 }
 
-/*
-fn aaas() {
-    mod tt {
-        const a:u8 = 16;
-
-        struct ddd {
-
-        }
-    }
-
-    struct gg {
-
-    }
-}
-
-
-#[doc(hidden)]
-#[cfg_target(x86_64:ar & desktop | (mobile))] 
-/// Blabla
-/// Bdkd dskd
-fn test_fnt() {
-    println!("foo1");
-
-    target_cfg!{ 
+pub fn inside3()  { 
+    println!("iside me");
+    target_cfg!{ !$
         (linux:os) => {
-            
-            if true {
-                if !false {
-                    println!("Wow, this is uslessin Linux!");
+                let a = 15;
+                if true {
+                    if !false {
+                        println!("Wow, this is uselessin Linux!");
+                    }
                 }
-            }
 
-            fn inner_me() {
-                println!("ssss");
-            }
-            inner_me();
-        },
+               
+            },
         
-        (windows:os) => {
-            if true {
-                if !false {
-                    println!("Wow, this is useless in Windows!");
+        (* windows:os) => {
+                if true {
+                    if !false {
+                        println!("Wow, this is useless in Windows!");
+                    }
                 }
-            }
         },
     }
+
 }
 
 target_cfg!{
     
     
     (linux:os | (wasm:fm | windows:os)) => {
+
+        struct example {
+            myvar : u32,
+
+            pub myvar2 : u64,
+        }
 
         mod toto {
 
@@ -113,7 +96,7 @@ target_cfg!{
         }
         
 	},
-	() => {
+	(x86:ar) => {
         pub fn last() {
 
         }
@@ -121,7 +104,7 @@ target_cfg!{
     
 }
 
-*/
+
 
 #[cfg(test)]
 mod tests {
