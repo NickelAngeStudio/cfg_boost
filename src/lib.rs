@@ -1,14 +1,17 @@
 // Enable experimental features for documentation.
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-use std::{process::Command};
+use option::{TargetAttributeOption, TargetMatchOption};
 use proc_macro::{TokenStream};
-use syntax::SyntaxTreeNode;
+use syntax::{SyntaxTreeNode, Node};
+use tools::{extract_symbol, split_items, TargetGroup, TargetActiveCounter};
 
-use crate::{errors::TargetCfgError, syntax::get_rustc_print_cfg};
 
-/// target_cfg pattern extractor
-mod pattern;
+/// Target symbol options
+mod option;
+
+/// Tools and functions
+mod tools;
 
 /// Errors enumeration
 mod errors;
@@ -17,93 +20,106 @@ mod errors;
 mod syntax;
 
 #[proc_macro]
-pub fn target_cfg(_item: TokenStream) -> TokenStream {
+pub fn target_cfg(item: TokenStream) -> TokenStream {
 
-    /*
-    let tg = TargetGroup::extract(item);
+    // TokenStream that accumulate content
+    let mut content = TokenStream::new();
 
-   println!("MODPATH={}", module_path!());
+    // Debug string that accumulate debug message.
+    let mut debug_str = String::new();
 
-    for t in tg {
-        println!("t={}", t.to_string());
+    // 1. Extract symbol options from item
+    let (symbol, item) = extract_symbol(item, true);
+
+    // 2. Extract target groups
+    let tg = TargetGroup::extract(item.clone());
+
+    // 3. Generate options from symbol and groups
+    let options = TargetMatchOption::new(symbol.clone(), &tg);
+
+    // 4. Create active arms counter
+    let mut arm_cpt = TargetActiveCounter::new(&options);
+
+    if options.is_debug {   // Push options 
+        debug_str.push_str(&format!("\nTARGET_CFG DEBUG\nOPTIONS[{}]", options.to_string()));
     }
-    */
 
-    /*
-   for token in item {
-    match token {
-        proc_macro::TokenTree::Group(group) => {
-            println!("L1 GROUP[{}]", group.to_string());
-            for token2 in group.stream() {
-                token2.span().
-                match token2 {
-                    proc_macro::TokenTree::Group(group) => println!("L2 GROUP[{}]", group.to_string()),
-                    proc_macro::TokenTree::Ident(ident) => println!("L2 IDENT[{}]", ident.to_string()),
-                    proc_macro::TokenTree::Punct(punc) => println!("L2 PUNCT[{}]", punc.to_string()),
-                    proc_macro::TokenTree::Literal(lit) => println!("L2 LITERAL[{}]", lit.to_string()),
+    // 5. For each group
+    for g in tg {
+
+        // 5.1. Extract symbol from attributes 
+        let (symbol_attr, attr) = extract_symbol(g.attr.clone(), true);
+
+        // 5.2. Generate attributes options from symbol and match options
+        let opt_attr = TargetAttributeOption::from_match(&options, symbol_attr.clone());
+
+        // 5.3. Generate syntax tree from attributes
+        let syntax_tree = SyntaxTreeNode::generate(attr.clone());
+
+        if options.is_debug {   // Push attr debug 
+            debug_str.push_str(&format!("\n{}", target_cfg_attr_debug_message(attr.clone(), &opt_attr, syntax_tree.clone())));
+        }
+        
+
+        // 5.4. Evaluate if value is overriden.
+        match opt_attr.always_this {
+            Some(is_activated) => {
+                if is_activated {
+                    content.extend(target_cfg_activate_arm(&mut arm_cpt, &options, syntax_tree.clone(), g.item));
                 }
-            }
+            },
+            // 5.5 Evaluate syntax_tree
+            None => if options.allow_doc || syntax_tree.evaluate() {
+                content.extend(target_cfg_activate_arm(&mut arm_cpt, &options, syntax_tree.clone(), g.item));
 
-
-        }, //println!("GROUP={}", group.to_string()),
-        proc_macro::TokenTree::Ident(ident) => println!("L1 IDENT[{}]", ident.to_string()),
-        proc_macro::TokenTree::Punct(punc) => println!("L1 PUNCT[{}]", punc.to_string()),
-        proc_macro::TokenTree::Literal(lit) => println!("L1 LITERAL[{}]", lit.to_string()),
+            },
+        }
     }
-    */
-    /*
-    let thread_join_handle = thread::spawn(move || {
-        let cmd = Command::new("cargo").arg("rustc").arg("--lib").arg("--").arg("--print").arg("cfg").output();
-        cmd
-    });
-    // some work here
-    let res = thread_join_handle.join();
 
-    match res {
-        Ok(cmd) => {
-            match cmd{
-                Ok(output) => {
-                    let out_str = String::from_utf8(output.stdout);
-
-                    match out_str {
-                        Ok(cfg_var) => println!("TCFG={}", cfg_var),
-                        Err(_) => todo!(),
-                    }
-                },
-                Err(_) => todo!(),
-            }
-        },
-        Err(_) => todo!(),
+    if options.is_debug {   // If debug, panic with content.
+        panic!("{}\n\nCONTENT\n{}", debug_str, content.to_string());
     }
-    */
+   
+    // Return content
+    content
 
-    // https://crates.io/crates/rustc-cfg
-    let cmd = Command::new("rustc").arg("--print").arg("cfg").output();
-
-    match cmd{
-        Ok(output) => {
-            let out_str = String::from_utf8(output.stdout);
-
-            match out_str {
-                Ok(cfg_var) => println!("TCFG={}", cfg_var),
-                Err(_) => todo!(),
-            }
-        },
-        Err(_) => todo!(),
-    }
-    
-    //println!("Input={}", stringify!(item.to_string()));
-
-
-    //target_cfg_parser!{item};
-
-    //println!("{}", item.to_string());
-
-    "fn aaaa() {}".parse().unwrap()
 }
 
 
+/// Activate a target_cfg! arm from parameters.
+#[inline(always)]
+pub(crate) fn target_cfg_activate_arm(arm_cpt : &mut TargetActiveCounter, options : &TargetMatchOption, syntax_tree : Node, item: TokenStream) -> TokenStream {
+    // TokenStream that accumulate content
+    let mut content = TokenStream::new();
 
+    // 1. Increment active arms.
+    arm_cpt.inc();
+
+    // 2. Verify if macro is inside
+    if options.is_inner_macro {
+        // 2.1. Add item as is in content
+        content.extend(item);
+    } else {
+        // 2.2. Create attr header
+        let attr_ts = format!("#[cfg_attr(docsrs, doc(cfg({})))]", syntax_tree.to_string()).parse::<TokenStream>().unwrap();
+
+        // 2.3. Split item into vector of items
+        let items = split_items(item.clone());
+
+        // 2.4.. For each item in vector of items
+        for item in items {
+            // 2.4.1. Add attr header.
+            content.extend(attr_ts.clone()); 
+
+            // 2.4.2. Add item to content
+            content.extend(item);
+        }
+    }
+
+    // 3. Return content generated
+    content
+
+}
 
 #[proc_macro_attribute]
 pub fn cfg_target(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -111,149 +127,81 @@ pub fn cfg_target(attr: TokenStream, item: TokenStream) -> TokenStream {
     // 1. Extract symbol from attributes
     let (symbol, attr) = extract_symbol(attr.clone(), true);
 
-    // 2. Generate syntax tree from content
+    // 2. Generate options from symbol
+    let options = TargetAttributeOption::new(symbol.clone());
+
+    // 3. Generate syntax tree from content
     let syntax_tree = SyntaxTreeNode::generate(attr.clone());
 
-    // 3 Evaluate syntax tree. Doc always pass except if using !? for no doc.
-    if is_doc(symbol.clone()) || syntax_tree.evaluate() {
-        let mut content = TokenStream::new();
-
-        if is_doc(symbol.clone()) {
-            // 3.1.1. Extend cfg_attr header for documentation
-            content.extend(format!("#[cfg_attr(docsrs, doc(cfg({})))]", syntax_tree.to_string()).parse::<TokenStream>().unwrap());
-        }
-
-        // 3.1.2 Add item to content
-        content.extend(item);
-        
-        if is_debug(symbol.clone()) {
-            // 3.1.3.1. If Debug, panic! with content.
-            panic!("\nCFG\n---\n{}\nATTR\n----\n{}\n\nEVAL\n----\n{}\n\nCONTENT\n-------\n{}", get_rustc_print_cfg(), syntax_tree.to_string(), 
-                syntax_tree.evaluate().to_string(), content.to_string());
+    // 4. Evaluate if value is overriden.
+    match options.always_this {
+        // Value is overriden, use provided value
+        Some(is_activated) => if is_activated {
+            cfg_target_activate(attr, &options, syntax_tree.clone(), item)
         } else {
-            // 3.1.3.2. If not debug write content.
-            content
-        }
-        
-    } else {
-        if is_debug(symbol.clone()) {
-            // 3.2.1. If Debug, panic! with content.
-            panic!("\nCFG\n---\n{}\nATTR\n----\n{}\n\nEVAL\n----\n{}\n\nCONTENT\n-------\n{}", get_rustc_print_cfg(), syntax_tree.to_string(), 
-                syntax_tree.evaluate().to_string(), "{ removed }");
+            cfg_target_deactivate(attr, &options, syntax_tree.clone())
+        },
+        // Value not overriden, evaluate doc and tree
+        None => if options.allow_doc || syntax_tree.evaluate() {
+            cfg_target_activate(attr, &options, syntax_tree.clone(), item)
         } else {
-            // 3.2.2. If not debug write empty tokenstream.
-            TokenStream::default()
-        }
+            cfg_target_deactivate(attr, &options, syntax_tree.clone())
+        },
     }
 
 }
 
-// rustc --print cfg
-
-
-/// Get if debug (@) symbol is activated.
-fn is_debug(symbol: TokenStream) -> bool {
-
-    // Not flag. Activated by !, consumed by other symbol.
-    let mut is_not = false;
-
-    for t in symbol {
-        match t {
-            proc_macro::TokenTree::Punct(punc) => {
-                match punc.as_char() {
-                    '!' => is_not = true,   // Activate is_not flag
-                    '@' => {    // Debug node
-                        return !is_not && true;
-                    },
-                    _ => is_not = false,    // Deactivate is_not flag
-                }
-            },
-            _ => {},
-        }
-    }
-
-    // Not debug if reached here
-    false
-}
-
-/// Get if documentation (?) symbol is activated. Is true by default.
-fn is_doc(symbol: TokenStream) -> bool {
-
-    // Not flag. Activated by !, consumed by other symbol.
-    let mut is_not = false;
-
-    for t in symbol {
-        match t {
-            proc_macro::TokenTree::Punct(punc) => {
-                match punc.as_char() {
-                    '!' => is_not = true,   // Activate is_not flag
-                    '?' => {    // Documentation node
-                        return !is_not && true;
-                    },
-                    _ => is_not = false,    // Deactivate is_not flag
-                }
-            },
-            _ => {},
-        }
-    }
-
-    // Default value for documentation
-    cfg!(doc)
-}
-
-
-/// Extract stream of symbol at the beginning and validate spacing of ! if true.
+/// Activate tokenstream.
 /// 
-/// Returns a pair containing symbol tokenstream and the rest of the stream without symbols.
-pub(crate) fn extract_symbol(stream: TokenStream, validate_spacing : bool) -> (TokenStream, TokenStream) {
-
-    // Symbol Tokenstream
-    let mut symbol = TokenStream::new();
-
-    // Content Tokenstream
+/// Panic(s)
+/// Will print debug value if debug is activated.
+#[inline(always)]
+pub(crate) fn cfg_target_activate(attr: TokenStream,options : &TargetAttributeOption, syntax_tree : Node, item : TokenStream) -> TokenStream{
     let mut content = TokenStream::new();
 
-    // Flag that show if in symbol right now.
-    let mut is_symbol = true;
-
-    for t in stream.clone() {
-        if is_symbol {
-            match t.clone() {
-                proc_macro::TokenTree::Punct(punc) => {
-                    match punc.as_char() {
-                        '?' | '@' | '$' => {
-                            symbol.extend(TokenStream::from(t))
-                        }
-                        '!' => { 
-                            if validate_spacing {
-                                match punc.spacing() {
-                                    proc_macro::Spacing::Alone => { // Alone ! are meant to be NOT()
-                                        is_symbol = false;
-                                        content.extend(TokenStream::from(t));
-                                    },
-                                    proc_macro::Spacing::Joint => symbol.extend(TokenStream::from(t)), // Joint ! are for symbol.
-                                }
-                            } else {
-                                symbol.extend(TokenStream::from(t))
-                            }
-                        }
-                        _ => {
-                            // Illegal character
-                            panic!("{}", TargetCfgError::InvalidCharacter(punc.as_char()).message(&stream.to_string()));
-                        },
-                    }
-                    
-                },
-                _ => {
-                    is_symbol = false;
-                    content.extend(TokenStream::from(t));
-                },
-            }
-        } else {
-            content.extend(TokenStream::from(t));
-        }
+    if options.allow_doc {
+        // 1. Extend cfg_attr header for documentation
+        content.extend(format!("#[cfg_attr(docsrs, doc(cfg({})))]", syntax_tree.to_string()).parse::<TokenStream>().unwrap());
     }
 
-    return (symbol, content)
+    // 2. Add item to content
+    content.extend(item);
 
+    // 3. Panic with content if debug
+    if options.is_debug {
+        panic!("{}", cfg_target_attr_debug_message(attr.clone(), &options, syntax_tree.clone(), content.clone()));
+    }
+
+    // 4. Write content to stream
+    content        
+}
+
+/// Deactivate tokenstream.
+/// 
+/// Panic(s)
+/// Will print debug value if debug is activated.
+#[inline(always)]
+pub(crate) fn cfg_target_deactivate(attr: TokenStream,options : &TargetAttributeOption, syntax_tree : Node) -> TokenStream{
+    // 1. Panic with content if debug
+    if options.is_debug {
+        panic!("{}", cfg_target_attr_debug_message(attr.clone(), &options, syntax_tree.clone(), TokenStream::default()));
+    }
+
+    // 2. Write empty tokenstream.
+    TokenStream::default()
+}
+
+/// This function create the debug message for attributes.
+#[inline(always)]
+pub(crate) fn cfg_target_attr_debug_message(attr: TokenStream, options : &TargetAttributeOption, syntax_tree : Node, content : TokenStream) -> String {
+    format!("\nATTR[{}]\nOPTIONS[{}]\nTO_STRING[{}]\nLEAF_EVAL[{}]\nTREE_EVAL[{}]\nEVAL_OVER[{:?}]\nCONTENT[{}]",
+    attr.to_string(), options.to_string(), syntax_tree.to_string(), syntax_tree.leaf_node_eval_to_string(), syntax_tree.evaluate(), options.always_this,
+    content.to_string())
+}
+
+/// This function create the debug message for attributes.
+#[inline(always)]
+pub(crate) fn target_cfg_attr_debug_message(attr: TokenStream, options : &TargetAttributeOption, syntax_tree : Node) -> String {
+    format!("\nATTR[{}]\nOPTIONS[{}]\nTO_STRING[{}]\nLEAF_EVAL[{}]\nTREE_EVAL[{}]\nEVAL_OVER[{:?}]",
+    attr.to_string(), options.to_string(), syntax_tree.to_string(), syntax_tree.leaf_node_eval_to_string(), syntax_tree.evaluate(), options.always_this)
 }
