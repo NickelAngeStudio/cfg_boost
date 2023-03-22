@@ -1,15 +1,15 @@
 extern crate target_cfg;
 use target_cfg::{ target_cfg, cfg_target };
 
-#[cfg_target(x86_64:ar & linux:os)]
+#[cfg_target([@] x86_64:ar & linux:os)]
 pub fn cfg_target_test() {
     println!("Is available");
 }
 
 pub fn inside3()  { 
     println!("iside me");
-    target_cfg!{ !$
-        (linux:os) => {
+    target_cfg!{ [!$, @, #]
+        ([!*] linux:os) => {
                 let a = 15;
                 if true {
                     if !false {
@@ -20,13 +20,21 @@ pub fn inside3()  {
                
             },
         
-        (* windows:os) => {
+        ([!*] windows:os) => {
                 if true {
                     if !false {
                         println!("Wow, this is useless in Windows!");
                     }
                 }
         },
+        
+        ([@, !*]) => {
+            println!("invalid node?");
+        },
+        _ => {
+            println!("last branch node?");
+        },
+        
     }
 
 }

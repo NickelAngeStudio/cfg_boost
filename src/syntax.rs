@@ -3,7 +3,7 @@
 use std::{rc::Rc, env, process::Command};
 use proc_macro::{TokenStream, TokenTree};
 
-use crate::{errors::TargetCfgError, tools::extract_symbol};
+use crate::{errors::TargetCfgError};
 
 /// SyntaxTreeNode in a RC 
 pub(crate) type Node = Rc<SyntaxTreeNode>;
@@ -14,6 +14,9 @@ const RUSTC_CFG_FLAGS : &str = "RUSTC_CFG_FLAGS";
 /// Syntax tree node used to parse attribute tokens.
 #[derive(Debug)]
 pub(crate) enum SyntaxTreeNode {
+    /// An empty Syntax Tree node. Used for ([*]) nodes.
+    EMPTY(bool),
+
     /// A Not node
     NOT(Node),
 
@@ -39,11 +42,16 @@ impl ToString for SyntaxTreeNode {
                     Ok(predicate) => format!("{}", predicate),
                     Err(err) => panic!("{}", err.message(label)),
                 },
+            SyntaxTreeNode::EMPTY(_) => String::from("{ empty }"),
         }
     }
 }
 
 impl SyntaxTreeNode {
+    /// Create an empty SyntaxTreeNode with evaluation
+    pub fn empty(value : bool) -> Node {
+        Rc::new(SyntaxTreeNode::EMPTY(value))
+    }
 
     /// Evaluate tree nodes and get if configuration is compiled.
     pub fn evaluate(&self) -> bool {
@@ -59,6 +67,7 @@ impl SyntaxTreeNode {
                 Ok(label) => is_predicate_in_cfg(&label),
                 Err(err) => panic!("{}", err.message(label)),
             },
+            SyntaxTreeNode::EMPTY(value) => *value,  // Empty node already has predefined value.
         }
     }
 
@@ -73,6 +82,7 @@ impl SyntaxTreeNode {
                     Ok(predicate) => format!("`{}` : `{}`", predicate, is_predicate_in_cfg(&predicate).to_string()),
                     Err(err) => panic!("{}", err.message(label)),
                 },
+            SyntaxTreeNode::EMPTY(value) => format!("`empty` : `{}`", value.to_string()),
         }
     }
 
@@ -94,7 +104,7 @@ impl SyntaxTreeNode {
             // No split. Must evaluate if not node, etc...
             None => {
                 // Is NOT node?
-                let (symbol, content) = extract_symbol(stream.clone(), false);
+                let (symbol, content) = extract_negative_symbol(stream.clone());
                 
                 if is_not_node(symbol) {
                     // Create a NOT node
@@ -141,6 +151,7 @@ impl SyntaxTreeNode {
 }
 
 /// Extract a group from token stream
+#[inline(always)]
 fn extract_group(stream : TokenStream) -> Option<TokenStream> {
     for t in stream {
         match t {
@@ -151,7 +162,47 @@ fn extract_group(stream : TokenStream) -> Option<TokenStream> {
     None
 }
 
+/// Extract ! at the beginning of node.
+/// 
+/// Returns a pair containing ! tokenstream and the rest of the stream without !.
+#[inline(always)]
+pub(crate) fn extract_negative_symbol(stream: TokenStream) -> (TokenStream, TokenStream) {
+
+    // Symbol Tokenstream
+    let mut symbol = TokenStream::new();
+
+    // Content Tokenstream
+    let mut content = TokenStream::new();
+
+    // Flag that show if in symbol right now.
+    let mut is_symbol = true;
+
+
+    for t in stream.clone() {
+        if is_symbol {
+            match t.clone() {
+                proc_macro::TokenTree::Punct(punc) => {
+                    match punc.as_char() {
+                        '!' => symbol.extend(TokenStream::from(t)),
+                        _ => panic!("{}", TargetCfgError::InvalidCharacter(punc.as_char()).message(&stream.to_string())),
+                    }
+                },
+                _ => {
+                    is_symbol = false;
+                    content.extend(TokenStream::from(t));
+                },
+            }
+        } else {
+            content.extend(TokenStream::from(t));
+        }
+    }
+
+    (symbol, content)
+
+}
+
 /// Verify if node is a NOT node, or not
+#[inline(always)]
 fn is_not_node(symbol : TokenStream) -> bool{
 
     for t in symbol {
@@ -171,6 +222,7 @@ fn is_not_node(symbol : TokenStream) -> bool{
 }
 
 /// Split a token stream at specified token tree
+#[inline(always)]
 pub(crate) fn split_tokenstream_at_operator(stream : TokenStream) -> Option<(char, TokenStream, TokenStream)> {
 
     // Used to munch tokens on the left
@@ -304,6 +356,7 @@ pub fn parse_alias_from_label(label : &str) -> Result<String, TargetCfgError> {
 /// 
 /// Reference(s)
 /// <https://crates.io/crates/rustc-cfg>
+#[inline(always)]
 pub(crate) fn get_rustc_print_cfg() -> String {
 
     match env::var(RUSTC_CFG_FLAGS) {
@@ -337,6 +390,7 @@ pub(crate) fn get_rustc_print_cfg() -> String {
 }
 
 /// Returns True if predicate is in rustc configuration
+#[inline(always)]
 pub(crate) fn is_predicate_in_cfg(predicate : &String) -> bool {
     // Remove spaces from predicate
     let trimmed = predicate.replace(" ", "");
@@ -355,6 +409,7 @@ pub(crate) fn is_predicate_in_cfg(predicate : &String) -> bool {
 /// Returns Some(True) if predicate is in environment variable.
 /// 
 /// Returns None if no env variable.
+#[inline(always)]
 pub(crate) fn is_predicate_in_env(predicate : &String) -> Option<bool> {
 
     // 1. Extract predicate from value
@@ -376,7 +431,34 @@ pub(crate) fn is_predicate_in_env(predicate : &String) -> Option<bool> {
                         let label = label.replace("-", "_"); // ... name of the feature uppercased and having - translated to _
                         match env::var(format!("CARGO_FEATURE_{}", label.to_uppercase())) {
                             Ok(_) => Some(true),
-                            Err(_) => None, // Env variable not found for predicate
+                            Err(_) => {
+                                // 4. Try label directly as is.
+                                match env::var(format!("{}", label)) {
+                                    Ok(env_value) => match env_value.find(value){
+                                        Some(_) => Some(true),
+                                        None => Some(false),
+                                    },
+                                    Err(_) => {
+                                        // 5. Try label as uppercase.
+                                        match env::var(format!("{}", label.to_uppercase())) {
+                                            Ok(env_value) => match env_value.find(value){
+                                                Some(_) => Some(true),
+                                                None => Some(false),
+                                            },
+                                            Err(_) => {
+                                                // 6. Try label as lowercase.
+                                                match env::var(format!("{}", label.to_lowercase())) {
+                                                    Ok(env_value) => match env_value.find(value){
+                                                        Some(_) => Some(true),
+                                                        None => Some(false),
+                                                    },
+                                                    Err(_) => None, 
+                                                }
+                                            }, 
+                                        }
+                                    }, 
+                                }
+                            }, 
                         }
                     },
                 },
