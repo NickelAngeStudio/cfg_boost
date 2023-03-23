@@ -2,6 +2,43 @@ use proc_macro::TokenStream;
 
 use crate::{errors::TargetCfgError, tools::{split_items, extract_modifier}, syntax::{Node, SyntaxTreeNode}};
 
+/// Negative modifier symbol
+const NEGATIVE_MODIFIER : char = '!';
+
+/// Panic print modifier symbol
+const PRINT_MODIFIER : char = '#';
+
+/// Documentation modifier symbol
+const DOC_MODIFIER : char = '?';
+
+/// Debug modifier symbol
+const DEBUG_MODIFIER : char = '@';
+
+/// Value override symbol
+const OVERRIDE_MODIFIER : char = '*';
+
+/// Exclusive symbol
+const EXCLUSIVE_MODIFIER : char = '$';
+
+/// Guard symbol
+const GUARD_MODIFIER : char = '%';
+
+/// Always added branch symbol
+const ALWAYS_BRANCH : char = '+';
+
+/// Always added branch symbol as string
+const ALWAYS_BRANCH_STR : &str = "+";
+
+/// Never added branch symbol
+const NEVER_BRANCH : char = '-';
+
+/// Never added branch symbol as string
+const NEVER_BRANCH_STR : &str = "-";
+
+/// Exclusive branch symbol
+const EXCLUSIVE_BRANCH_STR : &str = "_";
+
+
 /// cfg_target attributes options.
 /// 
 /// They are detected by the tail symbols ?, @ and *. They are deactivated using !.
@@ -49,24 +86,24 @@ impl TargetAttributeOption {
             match t {
                 proc_macro::TokenTree::Punct(punc) => {
                     match punc.as_char() {
-                        '!' => is_not = true,   // Activate is_not flag
-                        '#' => {    // Panic result
+                        NEGATIVE_MODIFIER => is_not = true,   // Activate is_not flag
+                        PRINT_MODIFIER => {    // Panic result
                             is_panic_result = !is_not && true;
                             is_not = false; // Consume is_not flag
                         },
-                        '?' => {    // Documentation
+                        DOC_MODIFIER => {    // Documentation
                             allow_doc = !is_not && true;
                             is_not = false; // Consume is_not flag
                         },
-                        '@' => {    // Debug only
+                        DEBUG_MODIFIER => {    // Debug only
                             debug_only = Some(!is_not && true);
                             is_not = false; // Consume is_not flag
                         },
-                        '*' => {    // Always true
+                        OVERRIDE_MODIFIER => {    // Always true
                             always_this = Some(!is_not && true);
                             is_not = false; // Consume is_not flag
                         },
-                        ',' =>  {}, // Ignore separator
+                        ',' | NEVER_BRANCH | ALWAYS_BRANCH =>  {}, // Ignored
                         _ => // Illegal character
                         panic!("{}", TargetCfgError::InvalidCharacter(punc.as_char()).message(&symbol.to_string())),
                     }
@@ -97,29 +134,29 @@ impl TargetAttributeOption {
             match t {
                 proc_macro::TokenTree::Punct(punc) => {
                     match punc.as_char() {
-                        '!' => is_not = true,   // Activate is_not flag
-                        '#' => {    // Panic result
+                        NEGATIVE_MODIFIER => is_not = true,   // Activate is_not flag
+                        PRINT_MODIFIER => {    // Panic result
                             if ! match_opt.is_panic_result {
                                 is_panic_result = !is_not && true; 
                             }
                             is_not = false; // Consume is_not flag                           
                         },
-                        '@' => {    // Debug only
+                        DEBUG_MODIFIER => {    // Debug only
                             match match_opt.debug_only {
                                 Some(_) => {},
                                 None => debug_only = Some(!is_not && true),
                             }
                             is_not = false; // Consume is_not flag
                         },
-                        '?' => {    // Documentation
+                        DOC_MODIFIER => {    // Documentation
                             allow_doc = !is_not && true;
                             is_not = false; // Consume is_not flag
                         },
-                        '*' => {    // Always true
+                        OVERRIDE_MODIFIER => {    // Always true
                             always_this = Some(!is_not && true);
                             is_not = false; // Consume is_not flag
                         },
-                        ',' =>  {}, // Ignore separator
+                        ',' | NEVER_BRANCH | ALWAYS_BRANCH =>  {}, // Ignored
                         _ => // Illegal character
                         panic!("{}", TargetCfgError::InvalidCharacter(punc.as_char()).message(&symbol.to_string())),
                     }
@@ -158,12 +195,16 @@ pub(crate) struct TargetMatchOption {
 
     /// Flag that determine if macro is called from inside a function or not.
     pub is_inner_macro : bool,
+
+    /// Flag that determine is branch guard is activated or not. Branch guard panic! when not debug
+    /// if `*` or `!*` used or never branch `-` are used. Can be deactivated with `!%`.
+    pub activate_branch_guard : bool,
 }
 
 impl ToString for TargetMatchOption {
     fn to_string(&self) -> String {
-        format!("allow_doc : `{:?}`, is_panic_result : `{:?}`, debug_only : `{:?}`, is_exclusive : `{:?}`, is_inner_macro : `{:?}`", 
-            self.allow_doc, self.is_panic_result, self.debug_only, self.is_exclusive, self.is_inner_macro )
+        format!("allow_doc : `{:?}`, is_panic_result : `{:?}`, debug_only : `{:?}`, is_exclusive : `{:?}`, is_inner_macro : `{:?}`, activate_branch_guard : `{:?}`", 
+            self.allow_doc, self.is_panic_result, self.debug_only, self.is_exclusive, self.is_inner_macro, self.activate_branch_guard )
     }
 }
 
@@ -178,6 +219,7 @@ impl TargetMatchOption {
         let mut is_panic_result = false;
         let mut is_exclusive  = true;
         let mut debug_only : Option<bool> = None;
+        let mut activate_branch_guard = true;
 
         // Not flag. Activated by !, consumed by other symbol.
         let mut is_not = false;
@@ -186,23 +228,27 @@ impl TargetMatchOption {
             match t {
                 proc_macro::TokenTree::Punct(punc) => {
                     match punc.as_char() {
-                        '!' => is_not = true,   // Activate is_not flag
-                        '#' => {    // Panic result
+                        NEGATIVE_MODIFIER => is_not = true,   // Activate is_not flag
+                        PRINT_MODIFIER => {    // Panic result
                             is_panic_result = !is_not && true;
                             is_not = false; // Consume is_not flag
                         },
-                        '@' => {    // Debug only
+                        DEBUG_MODIFIER => {    // Debug only
                             debug_only = Some(!is_not && true);
                             is_not = false; // Consume is_not flag
                         },
-                        '?' => {    // Documentation
+                        DOC_MODIFIER => {    // Documentation
                             allow_doc = !is_not && true;
                             is_not = false; // Consume is_not flag
                         },
-                        '$' => {    // Exclusive
+                        EXCLUSIVE_MODIFIER => {    // Exclusive
                             is_exclusive = !is_not && true;
                             is_not = false; // Consume is_not flag
                         },
+                        GUARD_MODIFIER => {     // Guard modifier
+                            activate_branch_guard = !is_not && true;
+                            is_not = false; // Consume is_not flag
+                        }
                         ',' =>  {}, // Ignore separator
                         _ => // Illegal character
                         panic!("{}", TargetCfgError::InvalidCharacter(punc.as_char()).message(&symbol.to_string())),
@@ -212,7 +258,7 @@ impl TargetMatchOption {
             }
         }
 
-        TargetMatchOption{ allow_doc, is_panic_result, debug_only, is_exclusive, is_inner_macro : Self::is_inner_macro(tg) }
+        TargetMatchOption{ allow_doc, is_panic_result, debug_only, is_exclusive, is_inner_macro : Self::is_inner_macro(tg), activate_branch_guard }
 
     }
 
@@ -305,12 +351,21 @@ impl TargetGroup {
         for token in source {
 
             match token {
+                // Normal branch
                 proc_macro::TokenTree::Group(grp) => {
+                    
+
                     if is_block_attr {
                         if exclusive_branch_added { // Panic since exclusive branch isn't last.
-                        panic!("{}", TargetCfgError::ExclusiveBranchNotLast.message(""));
+                            panic!("{}", TargetCfgError::ExclusiveBranchNotLast.message(""));
                         }
                         attr = grp.stream();
+
+                        // Exclusive branch guard when used between ()
+                        match grp.stream().to_string().find(EXCLUSIVE_BRANCH_STR) {
+                            Some(_) => exclusive_branch_added = true,
+                            None => {},
+                        }
                     } else {
                         tg.push(TargetGroup::new(attr, grp.stream()));
                         attr = TokenStream::new();
@@ -318,16 +373,33 @@ impl TargetGroup {
                     is_block_attr = !is_block_attr;
 
                 },
+
+                // Special exclusive branch `_`.
                 proc_macro::TokenTree::Ident(ident) => {
-                    if ident.to_string().eq("_") {
+                    if ident.to_string().eq(EXCLUSIVE_BRANCH_STR) {
                         if is_block_attr {
                             exclusive_branch_added = true;
-                            attr = String::from("_").parse().unwrap();
+                            attr = EXCLUSIVE_BRANCH_STR.parse().unwrap();
                             is_block_attr = !is_block_attr;
                         }
                     }
                 },
+
+                // Special always included branch `+` or `-`.
+                proc_macro::TokenTree::Punct(punct) => 
+                    match punct.as_char() {
+                        ALWAYS_BRANCH => if is_block_attr {
+                            attr = String::from(ALWAYS_BRANCH).parse().unwrap();
+                            is_block_attr = !is_block_attr;
+                        },
+                        NEVER_BRANCH => if is_block_attr {
+                            attr = String::from(NEVER_BRANCH).parse().unwrap();
+                            is_block_attr = !is_block_attr;
+                        },
+                        _ => {}
+                },
                 _ => {},
+                
             }
         }
 
@@ -355,42 +427,62 @@ pub(crate) fn generate_target_cfg_content(tg : &Vec<TargetGroup>, options : &Tar
         // 2.1. Extract modifiers from attributes 
         let (modifier_attr, attr) = extract_modifier(g.attr.clone());
 
-        // 2.2. Generate attributes options from modifiers and match options
+        // 2.2. Panic! if branch attributes is empty.
+        if attr.is_empty() {
+            panic!("{}", TargetCfgError::EmptyBranch.message(&g.item.to_string()));
+        }
+
+        // 2.3. Generate attributes options from modifiers and match options
         let opt_attr = TargetAttributeOption::from_match(&options, modifier_attr.clone());
 
-        // 2.3. Generate syntax tree from attributes
-        let syntax_tree = if attr.is_empty() {
-                match opt_attr.always_this {
-                    Some(value) => SyntaxTreeNode::empty(value),
-                    // Empty branch are allowed ONLY AND ONLY IF modifier `*` exists.
-                    None => panic!("{}", TargetCfgError::EmptyBranch.message(&g.item.to_string())),
+        // 2.4. Generate syntax tree from attributes according to branch type.
+        let syntax_tree = match attr.to_string().as_str() {
+            // Special always added branch
+            ALWAYS_BRANCH_STR => SyntaxTreeNode::empty(true),
+
+            // Special never added branch
+            NEVER_BRANCH_STR => {
+                // Branch guard prevent never branch `-` when not in debug.
+                if !cfg!(debug_assertions) && options.activate_branch_guard  {
+                    panic!("{}", TargetCfgError::GuardBlockNeverAddedBranchNotDebug.message(""))
                 }
-            } else if attr.to_string().eq("_"){ // Is it the exclusive branch?
-                // Was any other branch activated?
-                SyntaxTreeNode::empty(branch_cpt.counter == 0)  // Create empty tree activated only if no branch were activated.
-            } else {
-                SyntaxTreeNode::generate(attr.clone())
-            };
-        
+                SyntaxTreeNode::empty(false)
+            },
+
+            // Special exclusive branch
+            EXCLUSIVE_BRANCH_STR => SyntaxTreeNode::empty(branch_cpt.get_counter() == 0),
+
+            // Normal branch
+            _ => SyntaxTreeNode::generate(attr.clone()),
+        };
         
         if options.is_panic_result {   // Push attr panic result 
             panic_str.push_str(&format!("\n{}", target_cfg_attr_panic_message(g.attr.clone(), &opt_attr, syntax_tree.clone())));
         }
         
-
-        // 2.4. Evaluate if value is overriden.
+        // 2.5. Evaluate if value is overriden.
         match opt_attr.always_this {
             Some(is_activated) => {
+                 // Branch guard prevent always true `*` or false `!*` when not in debug.
+                 if !cfg!(debug_assertions) && options.activate_branch_guard  {
+                    panic!("{}", TargetCfgError::GuardBlockAlwaysValueBranchNotDebug.message(""));
+                }
+
                 if is_activated {
                     content.extend(target_cfg_activate_branch(&mut branch_cpt, &options, syntax_tree.clone(), g.item.clone()));
                 }
             },
-            // 2.5 Evaluate syntax_tree
+            // 2.6 Evaluate syntax_tree
             None => if options.allow_doc || syntax_tree.evaluate() {
                 content.extend(target_cfg_activate_branch(&mut branch_cpt, &options, syntax_tree.clone(), g.item.clone()));
 
             },
         }
+    }
+
+    // Branch guard prevent target_cfg! that has no branchs activated.
+    if options.activate_branch_guard && branch_cpt.get_counter() == 0  {
+        panic!("{}", TargetCfgError::GuardNoBranchActivated.message(""));
     }
 
     content

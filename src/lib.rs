@@ -1,3 +1,5 @@
+//! Hello
+
 // Enable experimental features for documentation.
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
@@ -7,7 +9,6 @@ use syntax::{SyntaxTreeNode};
 use tools::{extract_modifier};
 
 use crate::target::cfg_target_attr_panic_message;
-
 
 /// Target relative function and struct
 mod target;
