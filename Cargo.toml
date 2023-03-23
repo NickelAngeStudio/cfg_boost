@@ -1,7 +1,14 @@
 [package]
 name = "target_cfg"
-version = "0.1.0"
+version = "1.0.0"
 edition = "2021"
+authors = ["Baphomat <baphomat@nickelange.studio>"]
+description = "Provide a new simplified syntax to manage #[cfg] parameters. Lot of options and modifiers in a single package with extra documentation tags!"
+keywords = ["cfg", "target", "macro", "utility", "doc"]
+categories = ["configuration", "development-tools"]
+repository = "https://github.com/NickelAngeStudio/target_cfg"
+license = "MIT"
+readme = "README.md"
 
 # List of excluded files
 exclude = [

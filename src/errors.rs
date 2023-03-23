@@ -29,6 +29,17 @@ pub enum TargetCfgError {
 
     /// Happens when exclusive branch _ is not the last branch.
     ExclusiveBranchNotLast,
+
+    /// Happens when * or !* are used during a release build.
+    GuardBlockAlwaysValueBranchNotDebug,
+
+    /// Happens when a never added branch `-` is used during a release build.
+    GuardBlockNeverAddedBranchNotDebug,
+
+    /// Happens when no branch are activated in target_cfg!
+    GuardNoBranchActivated,
+
+
 }
 
 /// Error message implementation.
@@ -43,8 +54,11 @@ impl TargetCfgError {
             TargetCfgError::RustcConditionalCfgError => format!("Cannot fetch rustc conditional configuration!"),
             TargetCfgError::InvalidPredicateFormat => format!("Invalid predicate format for `{:?}`.", tokens),
             TargetCfgError::TargetCfgIsExclusive => format!("More than 1 active branch in target_cfg!. If it is desired behaviour, add modifier `!$` at the begining of macro.\nSee https://github.com/NickelAngeStudio/target_cfg/wiki/Syntax for more informations."),
-            TargetCfgError::EmptyBranch => format!("Empty branch detected for content \n```\n{}\n```\nYou can allow empty branch with `*` or `!*` modifier.", tokens),
+            TargetCfgError::EmptyBranch => format!("No attributes in branch detected for content \n```\n{}\n```\nYou can allow empty branch with special branch symbol `+` or `_`.", tokens),
             TargetCfgError::ExclusiveBranchNotLast => format!("Exclusive branch `_` must ALWAYS be the last branch."),
+            TargetCfgError::GuardBlockAlwaysValueBranchNotDebug => format!("Branch guard prevent always true (*) or false(!*) branch for release build.\nYou can deactivate branch guard with `!%` in target_cfg! modifiers."),
+            TargetCfgError::GuardBlockNeverAddedBranchNotDebug => format!("Branch guard prevent never added (-) branch for release build.\nYou can deactivate branch guard with `!%` in target_cfg! modifiers."),
+            TargetCfgError::GuardNoBranchActivated => format!("Branch guard prevent having no branch activated in target_cfg!.\nYou can deactivate branch guard with `!%` in target_cfg! modifiers."),
         }
     }
 }

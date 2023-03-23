@@ -1,7 +1,5 @@
 use proc_macro::TokenStream;
 
-use crate::{target::TargetMatchOption, errors::TargetCfgError};
-
 /// Extract stream of modifiers at the beginning .
 /// 
 /// Returns a pair containing modifiers tokenstream and the rest of the stream without modifiers.

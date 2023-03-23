@@ -11,6 +11,15 @@ pub(crate) type Node = Rc<SyntaxTreeNode>;
 /// Key value of rustc conditional configuration flag for retrieval.
 const RUSTC_CFG_FLAGS : &str = "RUSTC_CFG_FLAGS";
 
+/// Negative symbol
+const NEGATIVE_SYMBOL : char = '!';
+
+/// Symbol for AND.
+const AND_SYMBOL : char = '&';
+
+/// Symbol for OR.
+const OR_SYMBOL : char = '|';
+
 /// Syntax tree node used to parse attribute tokens.
 #[derive(Debug)]
 pub(crate) enum SyntaxTreeNode {
@@ -93,10 +102,10 @@ impl SyntaxTreeNode {
             // Means we have to split 
             Some((operator, left, right)) => 
                 match operator {
-                    '&' => {    // ALL node
+                    AND_SYMBOL => {    // ALL node
                         return Rc::new(SyntaxTreeNode::ALL(Self::generate(left), Self::generate(right)));
                     }
-                    '|' => {    // ANY node
+                    OR_SYMBOL => {    // ANY node
                         return Rc::new(SyntaxTreeNode::ANY(Self::generate(left), Self::generate(right)));
                     },
                     _ =>  panic!("{}", TargetCfgError::InvalidCharacter(operator).message(&stream.to_string())),
@@ -183,7 +192,7 @@ pub(crate) fn extract_negative_symbol(stream: TokenStream) -> (TokenStream, Toke
             match t.clone() {
                 proc_macro::TokenTree::Punct(punc) => {
                     match punc.as_char() {
-                        '!' => symbol.extend(TokenStream::from(t)),
+                        NEGATIVE_SYMBOL => symbol.extend(TokenStream::from(t)),
                         _ => panic!("{}", TargetCfgError::InvalidCharacter(punc.as_char()).message(&stream.to_string())),
                     }
                 },
@@ -209,7 +218,7 @@ fn is_not_node(symbol : TokenStream) -> bool{
         match t {
             proc_macro::TokenTree::Punct(punc) => {
                 match punc.as_char() {
-                    '!' => return true,
+                    NEGATIVE_SYMBOL => return true,
                     _ => {},
                 }
             },
@@ -242,14 +251,14 @@ pub(crate) fn split_tokenstream_at_operator(stream : TokenStream) -> Option<(cha
                 match t.clone() {
                     proc_macro::TokenTree::Punct(symbol) => {
                         match symbol.as_char() {
-                                '&' => {    // ALL node
-                                    operator = '&'
+                                AND_SYMBOL => {    // ALL node
+                                    operator = AND_SYMBOL
                                 }
-                                '|' => {    // ANY node
-                                    operator = '|'
+                                OR_SYMBOL => {    // ANY node
+                                    operator = OR_SYMBOL
                                 }
                                 // Valid ignored characters
-                                '!' | '_' | '-' | ' ' | ':' | '.' => left.extend(TokenStream::from(t)),    // Munch tokens in left hand
+                                NEGATIVE_SYMBOL | '_' | '-' | ' ' | ':' | '.' => left.extend(TokenStream::from(t)),    // Munch tokens in left hand
                                     
                                 _ => {
                                     //err illegal
