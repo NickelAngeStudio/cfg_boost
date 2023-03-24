@@ -108,7 +108,7 @@ impl SyntaxTreeNode {
                     OR_SYMBOL => {    // ANY node
                         return Rc::new(SyntaxTreeNode::ANY(Self::generate(left), Self::generate(right)));
                     },
-                    _ =>  panic!("{}", TargetCfgError::InvalidCharacter(operator).message(&stream.to_string())),
+                    _ =>  panic!("{}", TargetCfgError::InvalidCharacter(String::from(operator)).message(&stream.to_string())),
                 },
             // No split. Must evaluate if not node, etc...
             None => {
@@ -193,7 +193,7 @@ pub(crate) fn extract_negative_symbol(stream: TokenStream) -> (TokenStream, Toke
                 proc_macro::TokenTree::Punct(punc) => {
                     match punc.as_char() {
                         NEGATIVE_SYMBOL => symbol.extend(TokenStream::from(t)),
-                        _ => panic!("{}", TargetCfgError::InvalidCharacter(punc.as_char()).message(&stream.to_string())),
+                        _ => panic!("{}", TargetCfgError::InvalidCharacter(String::from(punc.as_char())).message(&stream.to_string())),
                     }
                 },
                 _ => {
@@ -262,7 +262,7 @@ pub(crate) fn split_tokenstream_at_operator(stream : TokenStream) -> Option<(cha
                                     
                                 _ => {
                                     //err illegal
-                                    panic!("{}", TargetCfgError::InvalidCharacter(symbol.as_char()).message(&stream.to_string()));
+                                    panic!("{}", TargetCfgError::InvalidCharacter(String::from(symbol.as_char())).message(&stream.to_string()));
                                 },
                             }
                         },
