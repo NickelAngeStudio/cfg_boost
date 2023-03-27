@@ -1,4 +1,4 @@
-use crate::modifiers::{TargetActiveComparisonOperator, GUARD_MODIFIER, OVERRIDE_MODIFIER};
+use crate::arm::{ARM_SEPARATOR, CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1, WILDCARD_BRANCH};
 
 /// Possible target_cfg errors.
 pub enum TargetCfgError {
@@ -23,17 +23,20 @@ pub enum TargetCfgError {
     /// Happens when a predicate has an invalid format
     InvalidPredicateFormat,
 
-    /// Happens when having an empty branch without * modifier.
-    EmptyBranch,
+    /// Happens when having an empty arm.
+    EmptyArm,
 
-    /// Happens when exclusive branch _ is not the last branch.
-    ExclusiveBranchNotLast,
+    /// Happens when wildcard arm _ is not the last.
+    WildcardArmNotLast,
 
-    /// Happens when more than counter comparison with control result in error.
-    ActiveBranchCountError(usize, TargetActiveComparisonOperator, usize),
+    /// Happens when a separator `,` is missing between arms.
+    ArmSeparatorMissing,
 
-    /// Happens when * or !* are used during a release build.
-    GuardBlockAlwaysValueBranchNotDebug,
+    /// Happens when a content separator `=>` is malformed.
+    ContentSeparatorError,
+
+    /// Happens when wildcard arm is not set.
+    WildcardArmMissing,
 }
 
 /// Error message implementation.
@@ -47,10 +50,11 @@ impl TargetCfgError {
             TargetCfgError::InvalidConfigurationPredicate(cfg_prd) => format!("Configuration predicate `{}` has no match! Is it added in config.toml as `target_cfg_predicate-{}`?", cfg_prd, cfg_prd),
             TargetCfgError::RustcConditionalCfgError => format!("Cannot fetch rustc conditional configuration!"),
             TargetCfgError::InvalidPredicateFormat => format!("Invalid predicate format for `{:?}`.", tokens),
-            TargetCfgError::ActiveBranchCountError(cpt, op, control) => format!("Active branch count must be `{}{}`. It is currently {}. This can be changed via target_cfg! modifiers.", op.to_string(), control, cpt),
-            TargetCfgError::EmptyBranch => format!("No attributes in branch detected for content \n```\n{}\n```\nYou can allow empty branch with special branch symbol `+` or `_`.", tokens),
-            TargetCfgError::ExclusiveBranchNotLast => format!("Exclusive branch `_` must ALWAYS be the last branch."),
-            TargetCfgError::GuardBlockAlwaysValueBranchNotDebug => format!("Branch guard prevent value override modifier ({}) for release build.\nYou can deactivate branch guard with `!{}` in target_cfg! modifiers.", OVERRIDE_MODIFIER, GUARD_MODIFIER),
+            TargetCfgError::EmptyArm => format!("No attributes in arm detected for content\n```\n{}\n```\n", tokens),
+            TargetCfgError::WildcardArmNotLast => format!("Wildcard branch `_` must ALWAYS be the last branch."),
+            TargetCfgError::ArmSeparatorMissing => format!("Arm syntax incorrect. Are you missing a separator `{}` between arms?", ARM_SEPARATOR),
+            TargetCfgError::ContentSeparatorError => format!("Arm syntax incorrect. Is your arm separator `{}{}` syntax Ok?", CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1),
+            TargetCfgError::WildcardArmMissing => format!("Ensure that all possible cases are being handled by adding a match arm with a wildcard pattern `{}`", WILDCARD_BRANCH),
         }
     }
 }
