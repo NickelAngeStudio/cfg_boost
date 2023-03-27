@@ -1,24 +1,65 @@
 
-## Getting started in 2 steps
-To get this type of requirement doc :
-![Tokio requirement](https://i.stack.imgur.com/LWiN5.png)
+# cfg_revamp
 
-### 1. Update Cargo.toml
+Revamped syntax to easily manage all #[cfg] parameters. Provides pattern matching like [match](https://doc.rust-lang.org/beta/rust-by-example/flow_control/match.html) thus the first matching arm is evaluated and all possibility are covered.
 
-In cargo.toml, add the following at the end of the file :
-> [package.metadata.docs.rs]
-> all-features = true
-> rustdoc-args = ["--cfg", "docsrs"]
+See [Features Wiki](https://github.com/NickelAngeStudio/cfg_revamp/wiki/Features) to get the full list of features like aliases, attributes, automatic requirement tags documentation and more.
 
-### 2. Update lib.rs and/or main.rs
+## Example
+**Make this :**
+```
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+pub mod macos_mod;
 
-In lib.rs and/or main.rs, first line of code should be :
-> #![cfg_attr(docsrs, feature(doc_cfg))]
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+pub use macos_mod::Struct as Struct;
 
-### Testing doc locally
+#[cfg(target_os = "windows")]
+pub mod windows_mod;
 
-To test documentation locally, use this command :
-> RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features
+#[cfg(target_os = "windows")]
+pub use windows_mod::Struct1 as Struct1;
 
-### Reference(s)
-https://stackoverflow.com/questions/61417452/how-to-get-a-feature-requirement-tag-in-the-documentation-generated-by-cargo-do
+#[cfg(target_os = "windows")]
+pub use windows_mod::Struct2 as Struct2;
+
+#[cfg(target_os = "windows")]
+pub fn windows_only_fn() {}
+```
+
+**Look like this :**
+```
+target_cfg!{
+    macos | ios => {
+        pub mod macos_mod;
+        pub use macos_mod::Struct as Struct;
+    },
+    windows => {
+        pub mod windows_mod;
+        pub use windows_mod::Struct1 as Struct1;
+        pub use windows_mod::Struct2 as Struct2;
+        pub fn windows_only_fn() {}
+    },
+    _ => compile_error!("Platform not supported"),
+}
+```
+
+See [Examples wiki](https://github.com/NickelAngeStudio/cfg_revamp/wiki/Examples) for more use cases.
+
+
+## Installation
+Execute this command in your Rust project folder.
+```
+cargo add cfg_revamp
+```
+
+## Depedencies
+cfg_revamp has no depedencies and only use stable features.
+
+## Question?
+See [cfg_revamp wiki](https://github.com/NickelAngeStudio/cfg_revamp/wiki), it contains a **LOT** of information.
+
+&nbsp;
+---
+
+*Sponsor me via [GitHub Sponsors](https://github.com/sponsors/NickelAngeStudio) and get your sponsor royalty tier.*

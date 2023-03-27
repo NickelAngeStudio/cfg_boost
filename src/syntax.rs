@@ -23,8 +23,8 @@ const OR_SYMBOL : char = '|';
 /// Syntax tree node used to parse attribute tokens.
 #[derive(Debug)]
 pub(crate) enum SyntaxTreeNode {
-    /// An empty Syntax Tree node. Used for ([*]) nodes.
-    EMPTY(bool),
+    /// A wildcard Tree node.
+    WILDCARD(bool),
 
     /// A Not node
     NOT(Node),
@@ -51,7 +51,7 @@ impl ToString for SyntaxTreeNode {
                     Ok(predicate) => format!("{}", predicate),
                     Err(err) => panic!("{}", err.message(label)),
                 },
-            SyntaxTreeNode::EMPTY(_) => String::from("{ empty }"),
+            SyntaxTreeNode::WILDCARD(_) => String::from("{ empty }"),
         }
     }
 }
@@ -59,7 +59,7 @@ impl ToString for SyntaxTreeNode {
 impl SyntaxTreeNode {
     /// Create an empty SyntaxTreeNode with evaluation
     pub fn empty(value : bool) -> Node {
-        Rc::new(SyntaxTreeNode::EMPTY(value))
+        Rc::new(SyntaxTreeNode::WILDCARD(value))
     }
 
     /// Evaluate tree nodes and get if configuration is compiled.
@@ -76,10 +76,11 @@ impl SyntaxTreeNode {
                 Ok(label) => is_predicate_in_cfg(&label),
                 Err(err) => panic!("{}", err.message(label)),
             },
-            SyntaxTreeNode::EMPTY(value) => *value,  // Empty node already has predefined value.
+            SyntaxTreeNode::WILDCARD(value) => *value,  // Empty node already has predefined value.
         }
     }
 
+    /*
     /// This function return a string with each node value and evaluation.
     pub fn leaf_node_eval_to_string(&self) -> String {
         match self {
@@ -91,9 +92,10 @@ impl SyntaxTreeNode {
                     Ok(predicate) => format!("`{}` : `{}`", predicate, is_predicate_in_cfg(&predicate).to_string()),
                     Err(err) => panic!("{}", err.message(label)),
                 },
-            SyntaxTreeNode::EMPTY(value) => format!("`empty` : `{}`", value.to_string()),
+            SyntaxTreeNode::WILDCARD(value) => format!("`empty` : `{}`", value.to_string()),
         }
     }
+    */
 
     /// Generate a SyntaxTreeNode from token stream.
     pub(crate) fn generate(stream : TokenStream) -> Node {
