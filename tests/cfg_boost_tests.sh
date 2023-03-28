@@ -12,7 +12,10 @@
 # $ bash cfg_boost_tests.sh
 #
 # NOTE
-# 
+#
+# DEPENDENCIES
+# 32 bits compiler : sudo apt install gcc-multilib
+# i686 linux toolchain : rustup target add i686-unknown-linux-gnu
 #
 # REFERENCES
 #
@@ -26,6 +29,12 @@
 # Project test name
 PRJ_TEST_NAME="cfg_boost_test"
 
+# Count of tests passed
+TOTAL_PASSED=0
+
+# Count of total tests
+TOTAL_TESTS=0
+
 #############
 # FUNCTIONS #
 #############
@@ -34,33 +43,19 @@ remove_quotes() {
 	echo $(echo $(echo $1 | sed 's/"//g'))
 }
 
-# Build a test and return result.
-# $1 = script.rs to copy to main.rs
-# $2 = result to expect, find
-# $3+ = build arguments
-build_test() {
-	cp -r "../tests/rs/$1" "src/main.rs"  
-	result="$(cargo build "$3 $4 $5 $6 $7" 2>&1)"
-	
-	# Evaluate result
-	if [[ "$result" == *"$2"* ]]; then
-		echo -e "\033[1;34mTEST $1\033[0m        [\033[1;32mPASS\033[0m]"
-	else
-		echo $result
-		echo -e "\033[1;34mTEST $1\033[0m        [\033[1;31mFAIL\033[0m]"
-	fi
-
-}
-
 # Run a test and return result.
 # $1 = script.rs to copy to main.rs
 # $2 = result to expect, find
+# $3+ = build arguments
 run_test() {
+	TOTAL_TESTS=$((TOTAL_TESTS+1))
+	
 	cp -r "../tests/rs/$1" "src/main.rs"  
-	result="$(cargo run 2>&1)"
+	result="$(cargo run $3 $4 $5 $6 $7 2>&1)"
 	
 	# Evaluate result
 	if [[ "$result" == *"$2"* ]]; then
+		TOTAL_PASSED=$((TOTAL_PASSED+1))
 		echo -e "\033[1;34mTEST $1\033[0m        [\033[1;32mPASS\033[0m]"
 	else
 		echo $result
@@ -117,7 +112,6 @@ run_test 002.rs "This is hello world from cfg_boost!"
 run_test 003.rs "Empty node generated from attributes. Are you missing a statement between separator"
 run_test 004.rs "Test 004 completed!"
 
-
 # T5~T6 CfgBoostError::InvalidCharacter error.
 run_test 005.rs "Invalid character"
 run_test 006.rs "Test 006 completed!"
@@ -127,35 +121,36 @@ run_test 007.rs "has no match! Is it added in config.toml"
 run_test 008.rs "Test 008 completed!"
 
 # T9~T10 CfgBoostError::InvalidConfigurationPredicate error.
-#run_test 009.rs
-#run_test 010.rs
+run_test 009.rs "Configuration predicate"
+run_test 010.rs "Test 010 completed!"
 
-# T11~T12 CfgBoostError::InvalidPredicateFormat error.
-#run_test 011.rs
-#run_test 012.rs
+# T11~T12 CfgBoostError::EmptyArm error.
+run_test 011.rs "Empty arm with no attributes detected!"
+run_test 012.rs "Test 012 completed!"
 
-# T13~T14 CfgBoostError::EmptyArm error.
-#run_test 013.rs
-#run_test 014.rs
+# T13~T14 CfgBoostError::WildcardArmNotLast error.
+run_test 013.rs "must ALWAYS be the last branch"
+run_test 014.rs "Test 014 completed!"
 
-# T15~T16 CfgBoostError::WildcardArmNotLast error.
-#run_test 015.rs
-#run_test 016.rs
+# T15~T16 CfgBoostError::ArmSeparatorMissing error.
+run_test 015.rs "Arm syntax incorrect. Are you missing a separator"
+run_test 016.rs "Test 016 completed!"
 
-# T17~T18 CfgBoostError::ArmSeparatorMissing error.
-#run_test 017.rs
-#run_test 018.rs
+# T17~T18 CfgBoostError::ContentSeparatorError error.
+run_test 017.rs "Arm syntax incorrect. Is your arm separator"
+run_test 018.rs "Test 018 completed!"
 
-# T19~T20 CfgBoostError::ContentSeparatorError error.
-#run_test 019.rs
-#run_test 020.rs
-
-# T21~T22 CfgBoostError::WildcardArmMissing error.
-#run_test 021.rs
-#run_test 022.rs
+# T19~T20 CfgBoostError::WildcardArmMissing error.
+run_test 019.rs "Ensure that all possible cases are being handled by adding a match arm with a"
+run_test 020.rs "Test 020 completed!"
 
 
 # T## Test all predefined predicates (value:predicate) and build them via arguments
+run_test 021.rs "dfdsjsdfkjakjds" "--config target.'cfg(all(target_arch=\"x86\""
+
+cargo --config "target.'cfg(all(target_arch = \"arm\", target_os = \"none\"))'.runner = 'my-runner'" …
+
+
 # "ar" => Ok(format!("target_arch = \"{}\"", label)),
 # "tf" => Ok(format!("target_feature = \"{}\"", label)),
 # "os" => Ok(format!("target_os = \"{}\"", label)),
@@ -200,6 +195,15 @@ run_test 008.rs "Test 008 completed!"
 
 # T## Stress test. Generate main.rs with lot of valid uses.
 
+
+#########
+# TOTAL #
+#########
+if [[ $TOTAL_PASSED -eq $TOTAL_TESTS ]]; then
+	echo -e "\033[1;34mRESULT : \033[0m \033[1;32m$TOTAL_PASSED of $TOTAL_TESTS passed\033[0m"
+else
+	echo -e "\033[1;34mRESULT : \033[0m \033[1;31m$TOTAL_PASSED of $TOTAL_TESTS passed\033[0m"
+fi
 
 
 ############

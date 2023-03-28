@@ -53,8 +53,8 @@ Execute this command in your Rust project folder.
 cargo add cfg_boost
 ```
 
-## Depedencies
-cfg_boost has no depedencies and only use stable features.
+## Dependencies
+cfg_boost has no dependencies and only use stable features.
 
 ## Question?
 See [cfg_boost wiki](https://github.com/NickelAngeStudio/cfg_boost/wiki), it contains a **LOT** of information.

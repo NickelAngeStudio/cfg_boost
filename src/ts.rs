@@ -43,7 +43,6 @@ pub(crate) fn generate_match_content(item: TokenStream,  source : TargetMacroSou
 pub(crate) fn generate_syntax_tree(arm : &TargetArm) -> Node {
     match arm.arm_type {
         crate::arm::TargetArmType::Normal => {
-            println!("arm.attr={}", arm.attr.to_string());
             if arm.attr.is_empty() {    // Panic if attributes are empty on normal branch
                 panic!("{}", CfgBoostError::EmptyArm.message(&arm.content.to_string()));
             }

@@ -2,24 +2,33 @@
 use cfg_boost::{ cfg_target, target_cfg, match_cfg };
 
 target_cfg!{
-    x64_64:aa => {
+    x86_64:aa => {
         pub fn foo1() -> String {
             String::from("Test")
         }
     },
-    _ => {}
+    _ => {
+        pub fn foo1() -> String {
+            String::from("Test")
+        }
+    }
 }
 
 fn foo2() -> String {
     match_cfg!{
-        x64_64:aa => {
-            String::from("008") 
+        x86_64:aa => {
+            String::from("009") 
         },
-        _ => {}
+        _ => String::from("009") 
     }
 }
 
-#[cfg_target(x64_64:aa)]
+#[cfg_target(x86_64:aa)]
+fn foo3() -> String {
+    String::from("completed!")
+}
+
+#[cfg_target(!x86_64:aa)]
 fn foo3() -> String {
     String::from("completed!")
 }
