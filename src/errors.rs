@@ -1,7 +1,7 @@
 use crate::arm::{ARM_SEPARATOR, CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1, WILDCARD_BRANCH};
 
-/// Possible target_cfg errors.
-pub enum TargetCfgError {
+/// Possible cfg_boost errors.
+pub enum CfgBoostError {
     /// Missing operator (happens when a leaf contains a space)
     MissingOperator,
 
@@ -40,21 +40,21 @@ pub enum TargetCfgError {
 }
 
 /// Error message implementation.
-impl TargetCfgError {
+impl CfgBoostError {
     pub fn message(&self, tokens : &str) -> String {
         match self {
-            TargetCfgError::EmptyNode =>  format!("Empty node generated from attributes. Are you missing a statement between separator?"),
-            TargetCfgError::InvalidCharacter(c) => format!("Invalid character `{}` for `{:?}`.", c, tokens),
-            TargetCfgError::MissingOperator => format!("Operator `&` or '|' missing for `{:?}`. Target must not contain space.", tokens),
-            TargetCfgError::AliasNotFound(alias) => format!("Alias `{}` has no match! Is it added in config.toml as `target_cfg-{}`?", alias, alias),
-            TargetCfgError::InvalidConfigurationPredicate(cfg_prd) => format!("Configuration predicate `{}` has no match! Is it added in config.toml as `target_cfg_predicate-{}`?", cfg_prd, cfg_prd),
-            TargetCfgError::RustcConditionalCfgError => format!("Cannot fetch rustc conditional configuration!"),
-            TargetCfgError::InvalidPredicateFormat => format!("Invalid predicate format for `{:?}`.", tokens),
-            TargetCfgError::EmptyArm => format!("No attributes in arm detected for content\n```\n{}\n```\n", tokens),
-            TargetCfgError::WildcardArmNotLast => format!("Wildcard branch `_` must ALWAYS be the last branch."),
-            TargetCfgError::ArmSeparatorMissing => format!("Arm syntax incorrect. Are you missing a separator `{}` between arms?", ARM_SEPARATOR),
-            TargetCfgError::ContentSeparatorError => format!("Arm syntax incorrect. Is your arm separator `{}{}` syntax Ok?", CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1),
-            TargetCfgError::WildcardArmMissing => format!("Ensure that all possible cases are being handled by adding a match arm with a wildcard pattern `{}`", WILDCARD_BRANCH),
+            CfgBoostError::MissingOperator => format!("Operator `&` or '|' missing for `{:?}`. Target must not contain space.", tokens),
+            CfgBoostError::EmptyNode =>  format!("Empty node generated from attributes. Are you missing a statement between separator?"),
+            CfgBoostError::InvalidCharacter(c) => format!("Invalid character `{}` for `{:?}`.", c, tokens),
+            CfgBoostError::AliasNotFound(alias) => format!("Alias `{}` has no match! Is it added in config.toml as `target_cfg-{}`?", alias, alias),
+            CfgBoostError::InvalidConfigurationPredicate(cfg_prd) => format!("Configuration predicate `{}` has no match! Is it added in config.toml as `target_cfg_predicate-{}`?", cfg_prd, cfg_prd),
+            CfgBoostError::RustcConditionalCfgError => format!("Cannot fetch rustc conditional configuration!"),
+            CfgBoostError::InvalidPredicateFormat => format!("Invalid predicate format for `{:?}`.", tokens),
+            CfgBoostError::EmptyArm => format!("Empty arm with no attributes detected!"),
+            CfgBoostError::WildcardArmNotLast => format!("Wildcard branch `_` must ALWAYS be the last branch."),
+            CfgBoostError::ArmSeparatorMissing => format!("Arm syntax incorrect. Are you missing a separator `{}` between arms?", ARM_SEPARATOR),
+            CfgBoostError::ContentSeparatorError => format!("Arm syntax incorrect. Is your arm separator `{}{}` syntax Ok?", CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1),
+            CfgBoostError::WildcardArmMissing => format!("Ensure that all possible cases are being handled by adding a match arm with a `{}` wildcard pattern.", WILDCARD_BRANCH),
         }
     }
 }

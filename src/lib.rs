@@ -1,6 +1,6 @@
 //! Hello
 
-use ts::{ generate_match_content, generate_attr_content};
+use ts::{ generate_match_content, generate_attr_content, generate_documented_content};
 use proc_macro::{TokenStream};
 
 /// Errors enumeration
@@ -27,8 +27,11 @@ pub(crate) enum TargetMacroSource {
 #[proc_macro]
 pub fn target_cfg(item: TokenStream) -> TokenStream {
 
-    // Generate content from target_cfg! macro source.
-    generate_match_content(item, TargetMacroSource::TargetMacro)
+    if cfg!(doc) {  // All branches are activated for documentation.
+        generate_documented_content(item)
+    } else {        // Only one branch is activated during compilation.
+        generate_match_content(item, TargetMacroSource::TargetMacro)
+    }
 
 }
 
