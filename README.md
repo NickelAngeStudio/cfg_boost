@@ -1,9 +1,9 @@
 
-# cfg_revamp
+# cfg_boost
 
-Revamped syntax to easily manage all #[cfg] parameters. Provides pattern matching like [match](https://doc.rust-lang.org/beta/rust-by-example/flow_control/match.html) thus the first matching arm is evaluated and all possibility are covered.
+Revamped syntax to easily manage all #[cfg] parameters. Provides pattern matching like [match](https://doc.rust-lang.org/rust-by-example/flow_control/match.html) thus the first matching arm is evaluated and all possibility are covered.
 
-See [Features Wiki](https://github.com/NickelAngeStudio/cfg_revamp/wiki/Features) to get the full list of features like aliases, attributes, automatic requirement tags documentation and more.
+See [Features Wiki](https://github.com/NickelAngeStudio/cfg_boost/wiki/Features) to get the full list of features like aliases, attributes, automatic requirement tags documentation and more.
 
 ## Example
 **Make this :**
@@ -44,20 +44,20 @@ target_cfg!{
 }
 ```
 
-See [Examples wiki](https://github.com/NickelAngeStudio/cfg_revamp/wiki/Examples) for more use cases.
+See [Examples wiki](https://github.com/NickelAngeStudio/cfg_boost/wiki/Examples) for more use cases.
 
 
 ## Installation
 Execute this command in your Rust project folder.
 ```
-cargo add cfg_revamp
+cargo add cfg_boost
 ```
 
 ## Depedencies
-cfg_revamp has no depedencies and only use stable features.
+cfg_boost has no depedencies and only use stable features.
 
 ## Question?
-See [cfg_revamp wiki](https://github.com/NickelAngeStudio/cfg_revamp/wiki), it contains a **LOT** of information.
+See [cfg_boost wiki](https://github.com/NickelAngeStudio/cfg_boost/wiki), it contains a **LOT** of information.
 
 &nbsp;
 ---

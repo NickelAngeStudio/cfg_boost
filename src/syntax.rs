@@ -3,7 +3,7 @@
 use std::{rc::Rc, env, process::Command};
 use proc_macro::{TokenStream, TokenTree};
 
-use crate::{errors::TargetCfgError};
+use crate::{errors::CfgBoostError};
 
 /// SyntaxTreeNode in a RC 
 pub(crate) type Node = Rc<SyntaxTreeNode>;
@@ -80,23 +80,6 @@ impl SyntaxTreeNode {
         }
     }
 
-    /*
-    /// This function return a string with each node value and evaluation.
-    pub fn leaf_node_eval_to_string(&self) -> String {
-        match self {
-            SyntaxTreeNode::NOT(node) => format!("{}", node.leaf_node_eval_to_string()),
-            SyntaxTreeNode::ANY(left_node, right_node) => format!("{}, {}", left_node.leaf_node_eval_to_string(), right_node.leaf_node_eval_to_string()),
-            SyntaxTreeNode::ALL(left_node, right_node) => format!("{}, {}", left_node.leaf_node_eval_to_string(), right_node.leaf_node_eval_to_string()),
-            SyntaxTreeNode::LEAF(label) => 
-                match parse_cfg_predicate(&label.as_str()) {
-                    Ok(predicate) => format!("`{}` : `{}`", predicate, is_predicate_in_cfg(&predicate).to_string()),
-                    Err(err) => panic!("{}", err.message(label)),
-                },
-            SyntaxTreeNode::WILDCARD(value) => format!("`empty` : `{}`", value.to_string()),
-        }
-    }
-    */
-
     /// Generate a SyntaxTreeNode from token stream.
     pub(crate) fn generate(stream : TokenStream) -> Node {
 
@@ -110,7 +93,7 @@ impl SyntaxTreeNode {
                     OR_SYMBOL => {    // ANY node
                         return Rc::new(SyntaxTreeNode::ANY(Self::generate(left), Self::generate(right)));
                     },
-                    _ =>  panic!("{}", TargetCfgError::InvalidCharacter(String::from(operator)).message(&stream.to_string())),
+                    _ =>  panic!("{}", CfgBoostError::InvalidCharacter(String::from(operator)).message(&stream.to_string())),
                 },
             // No split. Must evaluate if not node, etc...
             None => {
@@ -128,13 +111,13 @@ impl SyntaxTreeNode {
                         None => {
                             // Verify that node isn't empty.
                             if content.to_string().eq("") { // Make sure node isn't empty
-                                panic!("{}", TargetCfgError::EmptyNode.message(&content.to_string()));
+                                panic!("{}", CfgBoostError::EmptyNode.message(&content.to_string()));
                             }
 
                             match content.to_string().find(":"){
                                 Some(pos) => {    // End LEAF reached
                                     match content.to_string()[..pos].trim().find(" "){    // Make sure node doesn't contains spaces.
-                                        Some(_) => panic!("{}", TargetCfgError::MissingOperator.message(&content.to_string())),
+                                        Some(_) => panic!("{}", CfgBoostError::MissingOperator.message(&content.to_string())),
                                         None => {},
                                     }
 
@@ -142,7 +125,7 @@ impl SyntaxTreeNode {
                                 },
                                 None => {   // Unwrap alias
                                     match content.to_string().find(" "){    // Make sure node doesn't contains spaces.
-                                        Some(_) => panic!("{}", TargetCfgError::MissingOperator.message(&content.to_string())),
+                                        Some(_) => panic!("{}", CfgBoostError::MissingOperator.message(&content.to_string())),
                                         None => {},
                                     }
                                     match parse_alias_from_label(&content.to_string()) {
@@ -195,7 +178,7 @@ pub(crate) fn extract_negative_symbol(stream: TokenStream) -> (TokenStream, Toke
                 proc_macro::TokenTree::Punct(punc) => {
                     match punc.as_char() {
                         NEGATIVE_SYMBOL => symbol.extend(TokenStream::from(t)),
-                        _ => panic!("{}", TargetCfgError::InvalidCharacter(String::from(punc.as_char())).message(&stream.to_string())),
+                        _ => panic!("{}", CfgBoostError::InvalidCharacter(String::from(punc.as_char())).message(&stream.to_string())),
                     }
                 },
                 _ => {
@@ -264,7 +247,7 @@ pub(crate) fn split_tokenstream_at_operator(stream : TokenStream) -> Option<(cha
                                     
                                 _ => {
                                     //err illegal
-                                    panic!("{}", TargetCfgError::InvalidCharacter(String::from(symbol.as_char())).message(&stream.to_string()));
+                                    panic!("{}", CfgBoostError::InvalidCharacter(String::from(symbol.as_char())).message(&stream.to_string()));
                                 },
                             }
                         },
@@ -289,7 +272,7 @@ pub(crate) fn split_tokenstream_at_operator(stream : TokenStream) -> Option<(cha
 /// Error(s)
 /// Returns Err([SyntaxParseError::InvalidConfigurationPredicate]) if predicate not defined.
 #[inline(always)]
-pub fn parse_cfg_predicate(tokens : &str) -> Result<String, TargetCfgError> {
+pub fn parse_cfg_predicate(tokens : &str) -> Result<String, CfgBoostError> {
 
     // 1. Extract label and predicate from tokens
     match tokens.find(":") {
@@ -315,13 +298,13 @@ pub fn parse_cfg_predicate(tokens : &str) -> Result<String, TargetCfgError> {
                         "ft" => Ok(format!("feature = \"{}\"", label)),
         
                         // Not found, raise error.
-                        _ => Err(TargetCfgError::InvalidConfigurationPredicate(String::from(cfg_opt))),
+                        _ => Err(CfgBoostError::InvalidConfigurationPredicate(String::from(cfg_opt))),
                     },
             }
         },
 
         // Should never happen but good to have in hand
-        None => Err(TargetCfgError::InvalidConfigurationPredicate(String::from(tokens))),
+        None => Err(CfgBoostError::InvalidConfigurationPredicate(String::from(tokens))),
     } 
 
 }
@@ -332,7 +315,7 @@ pub fn parse_cfg_predicate(tokens : &str) -> Result<String, TargetCfgError> {
 /// Error(s)
 /// Returns Err([TargetCfgError::AliasNotFound]) if alias not defined.
 #[inline(always)]
-pub fn parse_alias_from_label(label : &str) -> Result<String, TargetCfgError> {
+pub fn parse_alias_from_label(label : &str) -> Result<String, CfgBoostError> {
 
     // 1. Try to match environment variable to see if it was defined in config.toml.
     match env::var(format!("target_cfg-{}", label)) {
@@ -354,7 +337,7 @@ pub fn parse_alias_from_label(label : &str) -> Result<String, TargetCfgError> {
                 "mobile" => Ok(String::from("android:os | ios:os")),
 
                 // Not found, raise error.
-                _ => Err(TargetCfgError::AliasNotFound(String::from(label))),
+                _ => Err(CfgBoostError::AliasNotFound(String::from(label))),
             }
         },
     }
@@ -390,11 +373,11 @@ pub(crate) fn get_rustc_print_cfg() -> String {
                             // 3. Return content from command
                             out_str
                         },
-                        Err(_) => panic!("{}", TargetCfgError::RustcConditionalCfgError.message("")),
+                        Err(_) => panic!("{}", CfgBoostError::RustcConditionalCfgError.message("")),
 
                     }
                 }
-                Err(_) =>  panic!("{}", TargetCfgError::RustcConditionalCfgError.message("")),
+                Err(_) =>  panic!("{}", CfgBoostError::RustcConditionalCfgError.message("")),
             }
         }
     }
@@ -473,9 +456,9 @@ pub(crate) fn is_predicate_in_env(predicate : &String) -> Option<bool> {
                         }
                     },
                 },
-                None => panic!("{}", TargetCfgError::InvalidPredicateFormat.message(predicate)),
+                None => panic!("{}", CfgBoostError::InvalidPredicateFormat.message(predicate)),
             }
         }
-        None => panic!("{}", TargetCfgError::InvalidPredicateFormat.message(predicate)),
+        None => panic!("{}", CfgBoostError::InvalidPredicateFormat.message(predicate)),
     }    
 }

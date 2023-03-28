@@ -1,12 +1,12 @@
 [package]
-name = "cfg_revamp"
+name = "cfg_boost"
 version = "1.0.0"
 edition = "2021"
 authors = ["Baphomat <baphomat@nickelange.studio>"]
 description = "Revamped syntax to easily manage all #[cfg] parameters. Provides pattern matching like `match` thus the first matching arm is evaluated and all possibility are covered. See README and/or Wiki for a LOT more details."
-keywords = ["cfg", "match", "target", "revamp", "alias"]
+keywords = ["cfg", "match", "target", "boost", "alias"]
 categories = ["configuration", "development-tools"]
-repository = "https://github.com/NickelAngeStudio/target_cfg"
+repository = "https://github.com/NickelAngeStudio/cfg_boost"
 license = "MIT"
 readme = "README.md"
 

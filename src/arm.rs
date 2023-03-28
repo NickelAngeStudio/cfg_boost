@@ -1,6 +1,6 @@
 use proc_macro::TokenStream;
 
-use crate::errors::TargetCfgError;
+use crate::errors::CfgBoostError;
 
 /// Target arm separator
 pub(crate) const ARM_SEPARATOR : char = ',';
@@ -87,13 +87,19 @@ impl TargetArm {
                     },
                     CONTENT_SEPARATOR_0 => {
                         if !arm.content.is_empty() { // Indicate a missing arm separator
-                            panic!("{}", TargetCfgError::ArmSeparatorMissing.message(""));
+                            panic!("{}", CfgBoostError::ArmSeparatorMissing.message(""));
                         }
                         separator.0 = true
                     },
                     CONTENT_SEPARATOR_1 => {
                         if !arm.content.is_empty() { // Indicate a missing arm separator
-                            panic!("{}", TargetCfgError::ArmSeparatorMissing.message(""));
+                            panic!("{}", CfgBoostError::ArmSeparatorMissing.message(""));
+                        }
+                        match arm.arm_type {    // Panic if arm attr is empty.
+                            TargetArmType::Normal => if arm.attr.is_empty(){
+                                panic!("{}", CfgBoostError::EmptyArm.message(""));
+                            },
+                            _ => {},
                         }
                         separator.1 = true
                     },
@@ -114,61 +120,15 @@ impl TargetArm {
                 },
                 // Add content to attr or content
                 _ => Self::add_ts_to_arm(TokenStream::from(token), &mut arm, &arms, separator),
-
-                    /*
-                    Self::validate_arms(&arm, &arms, separator);    // Validate arm structures for integrity.
-                    if separator.0 || separator.1 {  // Add to content
-                        arm.content.extend(TokenStream::from(token));
-                    } else {    // Add to attributes
-                        arm.attr.extend(TokenStream::from(token));
-                    }
-                    */
-                //},
-                /*
-                proc_macro::TokenTree::Group(grp) => {
-                    match grp.delimiter() {
-                        proc_macro::Delimiter::Parenthesis => { // Normal arm attributes
-                            Self::validate_arms(&arm, &arms, separator);    // Validate armes structures for integrity.
-                            arm.arm_type = TargetBranchType::Normal;
-                            arm.attr.extend(grp.stream());  // Add arm attributes
-
-                        },
-                        _ => arm.content.extend(grp.stream()),    // Add to content.
-                    }
-                },
-                proc_macro::TokenTree::Ident(ident) => {
-                    if ident.to_string().eq(&String::from(WILDCARD_BRANCH)) {
-                        Self::validate_arms(&arm, &arms);    // Validate armes structures for integrity.
-                        arm.arm_type = TargetBranchType::Wildcard;
-                    }
-                },
-                proc_macro::TokenTree::Punct(punct) => match punct.as_char() {
-                    // Branch separator reached, add arm to vector and create new arm.
-                    BRANCH_SEPARATOR => {
-                        arms.push(arm);
-                        arm = TargetBranch::new(TargetBranchType::Normal);
-                    },
-                    // If arm content is empty, ignore symbols, else add to content.
-                    CONTENT_SEPARATOR_0 | CONTENT_SEPARATOR_1 => {
-                        if !arm.content.is_empty() {
-                            arm.content.extend(TokenStream::from(token));
-                        }
-                    },
-                    _ => arm.content.extend(TokenStream::from(token)),    // Add to content
-                },
-                    
-                proc_macro::TokenTree::Literal(_) => arm.content.extend(TokenStream::from(token)),   // Add to content
-                */
             }
         }
 
-        // Add last arm if it were not added (missing `,` at last entry is not an error.)
-        if !arm.attr.is_empty() || !arm.content.is_empty() {
-            arms.push(arm);
-        }
-
-        if !Self::has_wild_arm(&arms){  // Make sure a wildcard arm is written.
-            panic!("{}", TargetCfgError::WildcardArmMissing.message(""));
+         // Add last wildcard arm if it were not added (missing `,` at last entry is not an error.)
+        match arm.arm_type {
+            TargetArmType::Wildcard => arms.push(arm),
+            _ => if !Self::has_wild_arm(&arms){  // Make sure a wildcard arm is written.
+                panic!("{}", CfgBoostError::WildcardArmMissing.message(""));
+            },
         }
 
         arms
@@ -195,13 +155,13 @@ impl TargetArm {
     #[inline(always)]
     fn validate_arms(arms : &Vec<TargetArm>, separator : (bool, bool)) {
         if Self::has_wild_arm(&arms) { // Panic since wildcard arm isn't last.
-            panic!("{}", TargetCfgError::WildcardArmNotLast.message(""));
+            panic!("{}", CfgBoostError::WildcardArmNotLast.message(""));
         }
         if separator.0 && !separator.1 {    // Separator syntax error.
-            panic!("{}", TargetCfgError::ContentSeparatorError.message(""));
+            panic!("{}", CfgBoostError::ContentSeparatorError.message(""));
         }
         if !separator.0 && separator.1 {    // Separator syntax error.
-            panic!("{}", TargetCfgError::ContentSeparatorError.message(""));
+            panic!("{}", CfgBoostError::ContentSeparatorError.message(""));
         }
     }
 

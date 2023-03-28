@@ -2,7 +2,7 @@ use std::{env, path::Path, fs};
 
 use proc_macro::{TokenStream, Group, Delimiter, TokenTree};
 
-use crate::{syntax::{Node, SyntaxTreeNode}, arm::TargetArm, errors::TargetCfgError, TargetMacroSource};
+use crate::{syntax::{Node, SyntaxTreeNode}, arm::TargetArm, errors::CfgBoostError, TargetMacroSource};
 
 /// Macro that create cfg_attr for items attributes from syntax tree.
 macro_rules! format_doc_attr {
@@ -22,21 +22,15 @@ pub(crate) fn generate_match_content(item: TokenStream,  source : TargetMacroSou
     for arm in arms {
 
         // 2.1. Generate syntax tree from attributes according to branch type.
-        let syntax_tree = match arm.arm_type {
-            crate::arm::TargetArmType::Normal => {
-                if arm.attr.is_empty() {    // Panic if attributes are empty on normal branch
-                    panic!("{}", TargetCfgError::EmptyArm.message(&arm.content.to_string()));
-                }
-                SyntaxTreeNode::generate(arm.attr.clone())
-            },
-            // If wildcard reached, 
-            crate::arm::TargetArmType::Wildcard => SyntaxTreeNode::empty(true),
-        };
+        let syntax_tree = generate_syntax_tree(&arm);
 
         // 2.2. Evaluate syntax tree
         if syntax_tree.evaluate() {
-            // 2.3. Generate and return syntax tree content
-            return activate_arm(syntax_tree.clone(), arm.content, source);
+            // 2.3. Return activated branch
+            return match source {
+                TargetMacroSource::TargetMacro => arm.content,
+                TargetMacroSource::MatchMacro => TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace, arm.content))),
+            }
         }
     }
 
@@ -44,53 +38,69 @@ pub(crate) fn generate_match_content(item: TokenStream,  source : TargetMacroSou
     TokenStream::default()
 }
 
-/// Activate a matching arm from source macro.
+/// Generate a syntax tree from arm.
 #[inline(always)]
-pub(crate) fn activate_arm(syntax_tree : Node, stream: TokenStream, source : TargetMacroSource) -> TokenStream {
-    
-    match source {
-        // If from target_cfg macro.
-        TargetMacroSource::TargetMacro => {
-            match syntax_tree.as_ref() {
-                SyntaxTreeNode::WILDCARD(_) => stream,    // Wildcard are returned as is
-                _ => {
-                    if get_if_docrs_from_cache() {  // If we generate target labels
-                        generate_documented_content(syntax_tree.clone(), stream)
-                    } else {    // Return content as is
-                        stream
-                    }
-                },
+pub(crate) fn generate_syntax_tree(arm : &TargetArm) -> Node {
+    match arm.arm_type {
+        crate::arm::TargetArmType::Normal => {
+            println!("arm.attr={}", arm.attr.to_string());
+            if arm.attr.is_empty() {    // Panic if attributes are empty on normal branch
+                panic!("{}", CfgBoostError::EmptyArm.message(&arm.content.to_string()));
             }
+            SyntaxTreeNode::generate(arm.attr.clone())
         },
-        TargetMacroSource::MatchMacro => {
-            // Wrap content in group delimiter {}
-            TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace, stream)))
-        },
+        // If wildcard reached, 
+        crate::arm::TargetArmType::Wildcard => SyntaxTreeNode::empty(true),
     }
-
 }
 
 /// Generate documented content with target labels.
-fn generate_documented_content(syntax_tree : Node, stream: TokenStream) -> TokenStream {
+/// 
+/// Target labels are added only if [package.metadata.docs.rs] is in Cargo.toml.
+#[inline(always)]
+pub(crate) fn generate_documented_content(stream: TokenStream) -> TokenStream {
+
     // TokenStream that accumulate content
     let mut content = TokenStream::new();
 
-    // 1. Create cfg_attr header
-    let attr_ts = format_doc_attr!(syntax_tree).parse::<TokenStream>().unwrap();
+     // 1. Extract target arms
+     let arms = TargetArm::extract(stream.clone());
 
-    // 2. Split item into vector of items
-    let items = split_items(stream.clone());
+    if get_if_docrs_from_cache() {  // If we generate target labels
 
-    // 3. For each item in vector of items
-    for item in items {
-        // 3.1. Add attr header.
-        content.extend(attr_ts.clone()); 
+        // 2. For each arm
+        for arm in arms {
 
-        // 3.2. Add item to content
-        content.extend(item);
+            // 3. Generate syntax tree
+            let syntax_tree = generate_syntax_tree(&arm);
+    
+            // 4. Create cfg_attr header
+            let attr_ts = format_doc_attr!(syntax_tree).parse::<TokenStream>().unwrap();
+
+            // 5. Split item into vector of items
+            let items = split_items(stream.clone());
+
+            // 6. For each item in vector of items
+            for item in items {
+                // 6.1. Add attr header.
+                content.extend(attr_ts.clone()); 
+
+                // 6.2. Add item to content
+                content.extend(item);
+            }
+
+        }
+
+    } else {
+        // 2. For each arm
+        for arm in arms {
+            // 3. Add content to arm
+            content.extend(arm.content);
+        }
+
     }
 
-    // 4. Return content generated
+    // Return content generated
     content
 
 }
@@ -190,7 +200,7 @@ pub(crate) fn generate_attr_content(attr : TokenStream, item : TokenStream) -> T
     // 2. Is syntax tree evalute to true.
     if syntax_tree.evaluate() {
         // 2.1. Is Cargo.toml set up for target labels? If true, add cfg_attr header.
-        if get_if_docrs_from_cache() {  
+        if cfg!(doc) && get_if_docrs_from_cache() {  
             content.extend(format_doc_attr!(syntax_tree).parse::<TokenStream>().unwrap());
         }
 
