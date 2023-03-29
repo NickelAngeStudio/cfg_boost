@@ -1,15 +1,12 @@
 // Syntax tree used to generate configuration from TokenStream.
 
-use std::{rc::Rc, env, process::Command};
+use std::{rc::Rc, env};
 use proc_macro::{TokenStream, TokenTree};
 
 use crate::{errors::CfgBoostError};
 
 /// SyntaxTreeNode in a RC 
 pub(crate) type Node = Rc<SyntaxTreeNode>;
-
-/// Key value of rustc conditional configuration flag for retrieval.
-const RUSTC_CFG_FLAGS : &str = "RUSTC_CFG_FLAGS";
 
 /// Negative symbol
 const NEGATIVE_SYMBOL : char = '!';
@@ -23,8 +20,11 @@ const OR_SYMBOL : char = '|';
 /// Syntax tree node used to parse attribute tokens.
 #[derive(Debug)]
 pub(crate) enum SyntaxTreeNode {
-    /// A wildcard Tree node.
-    WILDCARD(bool),
+    /// An empty Tree node.
+    EMPTY,
+
+    /// A wildcard Tree node always true.
+    WILDCARD,
 
     /// A Not node
     NOT(Node),
@@ -43,41 +43,44 @@ impl ToString for SyntaxTreeNode {
     /// Write the node as string. The format will be the same as used with #[cfg()].
     fn to_string(&self) -> String {
         match self {
-            SyntaxTreeNode::NOT(node) => format!("NOT({})", node.to_string()),
-            SyntaxTreeNode::ANY(left_node, right_node) => format!("ANY({},{})", left_node.to_string(), right_node.to_string()),
-            SyntaxTreeNode::ALL(left_node, right_node) => format!("ALL({},{})", left_node.to_string(), right_node.to_string()),
+            SyntaxTreeNode::NOT(node) => format!("not({})", node.to_string()),
+            SyntaxTreeNode::ANY(left_node, right_node) => format!("any({},{})", left_node.to_string(), right_node.to_string()),
+            SyntaxTreeNode::ALL(left_node, right_node) => format!("all({},{})", left_node.to_string(), right_node.to_string()),
             SyntaxTreeNode::LEAF(label) => 
                 match parse_cfg_predicate(&label.as_str()) {
                     Ok(predicate) => format!("{}", predicate),
                     Err(err) => panic!("{}", err.message(label)),
                 },
-            SyntaxTreeNode::WILDCARD(_) => String::from("{ empty }"),
+            SyntaxTreeNode::WILDCARD => String::from("all()"),
+            SyntaxTreeNode::EMPTY => String::from("all()"),
         }
     }
 }
 
 impl SyntaxTreeNode {
-    /// Create an empty SyntaxTreeNode with evaluation
-    pub fn empty(value : bool) -> Node {
-        Rc::new(SyntaxTreeNode::WILDCARD(value))
+    /// Create a wildard SyntaxTreeNode
+    pub fn wildcard_node() -> Node {
+        Rc::new(SyntaxTreeNode::WILDCARD)
     }
 
-    /// Evaluate tree nodes and get if configuration is compiled.
-    pub fn evaluate(&self) -> bool {
+    /// Create an empty SyntaxTreeNode
+    pub fn empty_node() -> Node {
+        Rc::new(SyntaxTreeNode::EMPTY)
+    }
 
-        match self {
-            // Evaluate with childs nodes
-            SyntaxTreeNode::NOT(node) => ! node.evaluate(),
-            SyntaxTreeNode::ANY(left_node, right_node) => left_node.evaluate() || right_node.evaluate(),
-            SyntaxTreeNode::ALL(left_node, right_node) => left_node.evaluate() && right_node.evaluate(),
-            
-            // Match label to see if enabled or not.
-            SyntaxTreeNode::LEAF(label) => match parse_cfg_predicate(&label.as_str()) {
-                Ok(label) => is_predicate_in_cfg(&label),
-                Err(err) => panic!("{}", err.message(label)),
-            },
-            SyntaxTreeNode::WILDCARD(value) => *value,  // Empty node already has predefined value.
-        }
+    /// Create a NOT SyntaxTreeNode
+    pub fn not_node(child : Node) -> Node {
+        Rc::new(SyntaxTreeNode::NOT(child.clone()))
+    }
+
+    /// Create an ALL SyntaxTreeNode
+    pub fn all_node(left : Node, right : Node) -> Node {
+        Rc::new(SyntaxTreeNode::ALL(left.clone(), right.clone()))
+    }
+
+    /// Create an ANY SyntaxTreeNode
+    pub fn any_node(left : Node, right : Node) -> Node {
+        Rc::new(SyntaxTreeNode::ANY(left.clone(), right.clone()))
     }
 
     /// Generate a SyntaxTreeNode from token stream.
@@ -88,10 +91,10 @@ impl SyntaxTreeNode {
             Some((operator, left, right)) => 
                 match operator {
                     AND_SYMBOL => {    // ALL node
-                        return Rc::new(SyntaxTreeNode::ALL(Self::generate(left), Self::generate(right)));
+                        return Self::all_node(Self::generate(left), Self::generate(right));
                     }
                     OR_SYMBOL => {    // ANY node
-                        return Rc::new(SyntaxTreeNode::ANY(Self::generate(left), Self::generate(right)));
+                        return Self::any_node(Self::generate(left), Self::generate(right));
                     },
                     _ =>  panic!("{}", CfgBoostError::InvalidCharacter(String::from(operator)).message(&stream.to_string())),
                 },
@@ -102,7 +105,7 @@ impl SyntaxTreeNode {
                 
                 if is_not_node(symbol) {
                     // Create a NOT node
-                    return Rc::new(SyntaxTreeNode::NOT(Self::generate(content)));
+                    return Self::not_node(Self::generate(content));
                 } else {
 
                     // Extract group
@@ -342,123 +345,4 @@ pub fn parse_alias_from_label(label : &str) -> Result<String, CfgBoostError> {
         },
     }
 
-}
-
-/// Get the conditional configuration flag set by rustc.
-/// 
-/// To prevent fetching it each time, the result is cached in environment variable `RUSTC_CFG_FLAGS`.
-/// 
-/// Reference(s)
-/// <https://crates.io/crates/rustc-cfg>
-#[inline(always)]
-pub(crate) fn get_rustc_print_cfg() -> String {
-
-    match env::var(RUSTC_CFG_FLAGS) {
-        Ok(value) => {
-            value
-        },
-        Err(_) => {
-            // 1. Fetch content from command
-            let cmd = Command::new("rustc").arg("--print").arg("cfg").output();
-
-            match cmd {
-                Ok(output) => {
-                    let out_str = String::from_utf8(output.stdout);
-
-                    match out_str {
-                        Ok(out_str) => {
-                            // 2. Save content in environment variable `RUSTC_CFG_FLAGS`.
-                            env::set_var(RUSTC_CFG_FLAGS, out_str.clone());
-
-                            // 3. Return content from command
-                            out_str
-                        },
-                        Err(_) => panic!("{}", CfgBoostError::RustcConditionalCfgError.message("")),
-
-                    }
-                }
-                Err(_) =>  panic!("{}", CfgBoostError::RustcConditionalCfgError.message("")),
-            }
-        }
-    }
-}
-
-/// Returns True if predicate is in rustc configuration
-#[inline(always)]
-pub(crate) fn is_predicate_in_cfg(predicate : &String) -> bool {
-    // Remove spaces from predicate
-    let trimmed = predicate.replace(" ", "");
-
-    // Verify in env variable first
-    match is_predicate_in_env(&trimmed) {
-        Some(value) => value,
-        // Then look in rustc config.
-        None => match get_rustc_print_cfg().find(&trimmed) {
-            Some(_) => true,
-            None => false,
-        },
-    }
-}
-
-/// Returns Some(True) if predicate is in environment variable.
-/// 
-/// Returns None if no env variable.
-#[inline(always)]
-pub(crate) fn is_predicate_in_env(predicate : &String) -> Option<bool> {
-
-    // 1. Extract predicate from value
-    let cleaned = predicate.replace("\"", "");  // Remove ""
-    let mut split = cleaned.split("=");
-
-    match split.next() {
-        Some(label) => {
-            match split.next() {
-                Some(value) => 
-                // 2. Get env variable of predicate in CARGO_CFG
-                match env::var(format!("CARGO_CFG_{}", label.to_uppercase())) {
-                    Ok(env_value) => match env_value.find(value){
-                        Some(_) => Some(true),
-                        None => Some(false),
-                    },
-                    Err(_) => { 
-                        // 3. Get env variable of predicate in CARGO_FEATURE
-                        let label = label.replace("-", "_"); // ... name of the feature uppercased and having - translated to _
-                        match env::var(format!("CARGO_FEATURE_{}", label.to_uppercase())) {
-                            Ok(_) => Some(true),
-                            Err(_) => {
-                                // 4. Try label directly as is.
-                                match env::var(format!("{}", label)) {
-                                    Ok(env_value) => match env_value.find(value){
-                                        Some(_) => Some(true),
-                                        None => Some(false),
-                                    },
-                                    Err(_) => {
-                                        // 5. Try label as uppercase.
-                                        match env::var(format!("{}", label.to_uppercase())) {
-                                            Ok(env_value) => match env_value.find(value){
-                                                Some(_) => Some(true),
-                                                None => Some(false),
-                                            },
-                                            Err(_) => {
-                                                // 6. Try label as lowercase.
-                                                match env::var(format!("{}", label.to_lowercase())) {
-                                                    Ok(env_value) => match env_value.find(value){
-                                                        Some(_) => Some(true),
-                                                        None => Some(false),
-                                                    },
-                                                    Err(_) => None, 
-                                                }
-                                            }, 
-                                        }
-                                    }, 
-                                }
-                            }, 
-                        }
-                    },
-                },
-                None => panic!("{}", CfgBoostError::InvalidPredicateFormat.message(predicate)),
-            }
-        }
-        None => panic!("{}", CfgBoostError::InvalidPredicateFormat.message(predicate)),
-    }    
 }

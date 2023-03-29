@@ -17,12 +17,6 @@ pub enum CfgBoostError {
     /// Invalid configuration predicate
     InvalidConfigurationPredicate(String),
 
-    /// Cannot fetch rustc conditional configuration
-    RustcConditionalCfgError,
-
-    /// Happens when a predicate has an invalid format
-    InvalidPredicateFormat,
-
     /// Happens when having an empty arm.
     EmptyArm,
 
@@ -48,8 +42,6 @@ impl CfgBoostError {
             CfgBoostError::InvalidCharacter(c) => format!("Invalid character `{}` for `{:?}`.", c, tokens),
             CfgBoostError::AliasNotFound(alias) => format!("Alias `{}` has no match! Is it added in config.toml as `target_cfg-{}`?", alias, alias),
             CfgBoostError::InvalidConfigurationPredicate(cfg_prd) => format!("Configuration predicate `{}` has no match! Is it added in config.toml as `target_cfg_predicate-{}`?", cfg_prd, cfg_prd),
-            CfgBoostError::RustcConditionalCfgError => format!("Cannot fetch rustc conditional configuration!"),
-            CfgBoostError::InvalidPredicateFormat => format!("Invalid predicate format for `{:?}`.", tokens),
             CfgBoostError::EmptyArm => format!("Empty arm with no attributes detected!"),
             CfgBoostError::WildcardArmNotLast => format!("Wildcard branch `_` must ALWAYS be the last branch."),
             CfgBoostError::ArmSeparatorMissing => format!("Arm syntax incorrect. Are you missing a separator `{}` between arms?", ARM_SEPARATOR),
