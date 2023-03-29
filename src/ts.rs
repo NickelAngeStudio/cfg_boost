@@ -5,18 +5,32 @@ use proc_macro::{TokenStream, Group, Delimiter, TokenTree};
 use crate::{syntax::{Node, SyntaxTreeNode}, arm::TargetArm, errors::CfgBoostError, TargetMacroSource};
 
 /// Macro that create cfg_attr for items attributes from syntax tree.
-macro_rules! format_doc_attr {
+macro_rules! format_doc {
     ($tree:expr) => {
         format!("#[cfg_attr(docsrs, doc(cfg({})))]", $tree.to_string())
+    }
+}
+
+/// Macro that create cfg targets from syntax tree.
+macro_rules! format_cfg {
+    ($tree:expr) => {
+        format!("#[cfg({})]", $tree.to_string())
     }
 }
 
 
 /// Generate content from matching arm and macro source.
 #[inline(always)]
-pub(crate) fn generate_match_content(item: TokenStream,  source : TargetMacroSource) -> TokenStream {
+pub(crate) fn generate_match_content(stream: TokenStream,  source : TargetMacroSource) -> TokenStream {
+
+    // TokenStream that accumulate content
+    let mut content = TokenStream::new();
+
     // 1. Extract target arms
-    let arms = TargetArm::extract(item.clone());
+    let arms = TargetArm::extract(stream.clone());
+
+    // 2. Create cumulative tree that guard branchs
+    let mut cumul_tree = SyntaxTreeNode::empty_node();
 
     // 2. For each arm
     for arm in arms {
@@ -24,18 +38,52 @@ pub(crate) fn generate_match_content(item: TokenStream,  source : TargetMacroSou
         // 2.1. Generate syntax tree from attributes according to branch type.
         let syntax_tree = generate_syntax_tree(&arm);
 
-        // 2.2. Evaluate syntax tree
-        if syntax_tree.evaluate() {
-            // 2.3. Return activated branch
-            return match source {
-                TargetMacroSource::TargetMacro => arm.content,
-                TargetMacroSource::MatchMacro => TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace, arm.content))),
-            }
+        // 2.2. Update cumulative tree with syntax tree.
+        match cumul_tree.as_ref() {
+            SyntaxTreeNode::EMPTY => cumul_tree = SyntaxTreeNode::all_node(SyntaxTreeNode::empty_node(), syntax_tree.clone()),  // Init cumulative tree
+            SyntaxTreeNode::ALL(left, right) =>     // Cumulative tree is ALWAYS ALL after init
+                // Previous right node becomes negative and syntax nodes are added with all.
+                cumul_tree = SyntaxTreeNode::all_node(SyntaxTreeNode::all_node(left.clone(), SyntaxTreeNode::not_node(right.clone())), syntax_tree),
+            _ => {},    // we don't talk about those Bruno.
+        }
+        
+        // 2.3. Create cfg header from cumulative
+        let cfg_ts = format_cfg!(cumul_tree).parse::<TokenStream>().unwrap();
+
+        // 2.4. Add to content according to target source.
+        match source {
+            TargetMacroSource::TargetMacro => {
+                // 2.4.1. Split item into vector of items
+                let items = split_items(arm.content.clone());
+
+                // 2.4.2. For each item in vector of items
+                for item in items {
+                    // 2.4.2.1. Add cfg header.
+                    content.extend(cfg_ts.clone()); 
+
+                    // 2.4.2.2. Add item to content
+                    content.extend(item);
+                }
+            },
+            TargetMacroSource::MatchMacro => {
+                // 2.4.1. Add cfg header.
+                content.extend(cfg_ts.clone()); 
+
+                // 2.4.2. Add braced content
+                content.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace, arm.content.clone()))));
+            },
         }
     }
 
-    // 3. If no match return empty token stream.
-    TokenStream::default()
+    // 3. Add braces around content if from MatchMacro
+    match source {
+        TargetMacroSource::MatchMacro => content = TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace, content))),
+        _ => {}
+    }
+
+    // 4. Return content.
+    content
+
 }
 
 /// Generate a syntax tree from arm.
@@ -49,7 +97,7 @@ pub(crate) fn generate_syntax_tree(arm : &TargetArm) -> Node {
             SyntaxTreeNode::generate(arm.attr.clone())
         },
         // If wildcard reached, 
-        crate::arm::TargetArmType::Wildcard => SyntaxTreeNode::empty(true),
+        crate::arm::TargetArmType::Wildcard => SyntaxTreeNode::wildcard_node(),
     }
 }
 
@@ -74,7 +122,7 @@ pub(crate) fn generate_documented_content(stream: TokenStream) -> TokenStream {
             let syntax_tree = generate_syntax_tree(&arm);
     
             // 4. Create cfg_attr header
-            let attr_ts = format_doc_attr!(syntax_tree).parse::<TokenStream>().unwrap();
+            let attr_ts = format_doc!(syntax_tree).parse::<TokenStream>().unwrap();
 
             // 5. Split item into vector of items
             let items = split_items(stream.clone());
@@ -98,6 +146,7 @@ pub(crate) fn generate_documented_content(stream: TokenStream) -> TokenStream {
         }
 
     }
+
 
     // Return content generated
     content
@@ -145,16 +194,16 @@ pub(crate) fn split_items(stream : TokenStream) -> Vec<TokenStream> {
 }
 
 /// Key value of cargo.toml caching.
-const CFG_EASY_CARGO_CACHE : &str = "CFG_EASY_ATTR_DOC_SET";
+const CFG_BOOST_CARGO_CACHE : &str = "CFG_BOOST_ATTR_DOC_SET";
 
 /// Tag to search in Cargo.toml
-const CFG_EASY_DOCRS_TAG : &str = "[package.metadata.docs.rs]";
+const CFG_BOOST_DOCRS_TAG : &str = "[package.metadata.docs.rs]";
 
 /// Returns True if cfg-attr is generated for documentation labels.
 #[inline(always)]
 pub(crate) fn get_if_docrs_from_cache() -> bool {
     // 1. Get previous result from cache. 
-    match env::var(CFG_EASY_CARGO_CACHE) {
+    match env::var(CFG_BOOST_CARGO_CACHE) {
         Ok(value) => {
             value.eq("true")
         },
@@ -165,13 +214,13 @@ pub(crate) fn get_if_docrs_from_cache() -> bool {
 
             match fs::read_to_string(file_path){
                 Ok(content) => {
-                    match content.find(CFG_EASY_DOCRS_TAG){
+                    match content.find(CFG_BOOST_DOCRS_TAG){
                         Some(_) => { 
-                            env::set_var(CFG_EASY_CARGO_CACHE, "true");    // Cache result
+                            env::set_var(CFG_BOOST_CARGO_CACHE, "true");    // Cache result
                             true
                         },
                         None => {
-                            env::set_var(CFG_EASY_CARGO_CACHE, "false");    // Cache result
+                            env::set_var(CFG_BOOST_CARGO_CACHE, "false");    // Cache result
                             false
                         },
                     }
@@ -179,7 +228,7 @@ pub(crate) fn get_if_docrs_from_cache() -> bool {
 
                 // Cargo.toml not found, return false.
                 Err(_) => {
-                    env::set_var(CFG_EASY_CARGO_CACHE, "false");
+                    env::set_var(CFG_BOOST_CARGO_CACHE, "false");
                     false
                 },
             }
@@ -196,18 +245,18 @@ pub(crate) fn generate_attr_content(attr : TokenStream, item : TokenStream) -> T
     // 1. Generate syntax tree from attributes
     let syntax_tree = SyntaxTreeNode::generate(attr.clone());
 
-    // 2. Is syntax tree evalute to true.
-    if syntax_tree.evaluate() {
-        // 2.1. Is Cargo.toml set up for target labels? If true, add cfg_attr header.
-        if cfg!(doc) && get_if_docrs_from_cache() {  
-            content.extend(format_doc_attr!(syntax_tree).parse::<TokenStream>().unwrap());
-        }
+    // 2. Add #[cfg] to content
+    content.extend(format_cfg!(syntax_tree).parse::<TokenStream>().unwrap());
 
-        // 2.2. Add item to content.
-        content.extend(item);
+    // 3. Is Cargo.toml set up for target labels? If true, add cfg_attr header.
+    if cfg!(doc) && get_if_docrs_from_cache() {  
+        content.extend(format_doc!(syntax_tree).parse::<TokenStream>().unwrap());
     }
 
-    // 3. Write content to stream
+    // 4. Add item to content.
+    content.extend(item);
+
+    // 5. Write content to stream
     content        
 
 }

@@ -145,10 +145,10 @@ run_test 019.rs "Ensure that all possible cases are being handled by adding a ma
 run_test 020.rs "Test 020 completed!"
 
 
-# T## Test all predefined predicates (value:predicate) and build them via arguments
+# T21 Test all predefined predicates (value:predicate)
 run_test 021.rs "dfdsjsdfkjakjds" "--config target.'cfg(all(target_arch=\"x86\""
 
-cargo --config "target.'cfg(all(target_arch = \"arm\", target_os = \"none\"))'.runner = 'my-runner'" …
+
 
 
 # "ar" => Ok(format!("target_arch = \"{}\"", label)),
@@ -163,10 +163,10 @@ cargo --config "target.'cfg(all(target_arch = \"arm\", target_os = \"none\"))'.r
 # "pn" => Ok(format!("panic = \"{}\"", label)),
 # "ft" => Ok(format!("feature = \"{}\"", label)),
 
-# T## Create custom predicates and build them via arguments
+# T22 Create custom predicates and build them via arguments
 
 
-# T## Test all predefined aliases and build them via arguments
+# T23 Test all predefined aliases and build them via arguments
 # "linux" => Ok(String::from("linux:os")),
 # "unix" => Ok(String::from("unix:fm")),
 # "windows" => Ok(String::from("windows:fm")),
@@ -178,13 +178,13 @@ cargo --config "target.'cfg(all(target_arch = \"arm\", target_os = \"none\"))'.r
 # "mobile" => Ok(String::from("android:os | ios:os")),
 
 
-# T## Create custom aliases and build them via arguments
+# T24 Create custom aliases and build them via arguments
 
 
-# T## Generate documentation without [package.metadata.docs.rs] and read generated file to make sure labels are NOT included.
+# T25 Generate documentation without [package.metadata.docs.rs] and read generated file to make sure labels are NOT included.
 
 
-# T## Generate documentation with [package.metadata.docs.rs] and read generated file to make sure labels are included.
+# T26 Generate documentation with [package.metadata.docs.rs] and read generated file to make sure labels are included.
 
 
 # Add documentation metadata to test project 
@@ -193,7 +193,7 @@ cargo --config "target.'cfg(all(target_arch = \"arm\", target_os = \"none\"))'.r
 #echo "rustdoc-args = [\"--cfg\", \"docsrs\"]" >> $PRJ_TEST_NAME/Cargo.toml
 
 
-# T## Stress test. Generate main.rs with lot of valid uses.
+# T27 Stress test. Generate main.rs with lot of valid uses.
 
 
 #########
