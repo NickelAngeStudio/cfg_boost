@@ -1,4 +1,4 @@
-// Test 022 : Custom predicates.
+// Test 023 : Custom predicates.
 use cfg_boost::{ target_cfg, match_cfg, cfg_target };
 
 /**************
@@ -40,7 +40,7 @@ fn match_foo() -> String {
         foo:c9 => String::from("tat_foo"),  // c9
         foo:really_long_predicate_and_i_mean_really_longgggggggggg => String::from("tpn_foo"),  // really_long_predicate_and_i_mean_really_longgggggggggg
         foo:x => String::from("tft_foo"),  // x
-        _ => String::from("022")
+        _ => String::from("023")
     }
 }
 

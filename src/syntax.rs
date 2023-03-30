@@ -329,7 +329,7 @@ pub fn parse_alias_from_label(label : &str) -> Result<String, CfgBoostError> {
                 // Predefined OS aliases
                 "linux" => Ok(String::from("linux:os")),
                 "unix" => Ok(String::from("unix:fm")),
-                "windows" => Ok(String::from("windows:fm")),
+                "windows" => Ok(String::from("windows:os")),
                 "macos" => Ok(String::from("macos:os")),
                 "android" => Ok(String::from("android:os")),
                 "ios" => Ok(String::from("ios:os")),

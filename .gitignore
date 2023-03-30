@@ -1,4 +1,5 @@
 /tests/tests.rs
+/cfg_boost_test
 /target
 /target_cfg_test
 /Cargo.lock

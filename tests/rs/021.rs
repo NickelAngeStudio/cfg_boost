@@ -4,118 +4,59 @@ use cfg_boost::{ target_cfg, match_cfg, cfg_target };
 /**************
  * TARGET_CFG *
  **************/
-// ar : target architecture
 target_cfg!{
-    
-    x86_64:ar => {
-        pub fn tar_foo() -> String {
-            String::from("tar:x86_64")
-        }
-    },
-    x86:ar => {
-        pub fn tar_foo() -> String {
-            String::from("tar:x86")
-        }
-    },
+    foo:ar => { pub fn tar_foo() {} },  // ar : target architecture
+    foo:tf => { pub fn ttf_foo() {} },  // tf : target architecture feature
+    foo:os => { pub fn tos_foo() {} },  // os : target operating system
+    foo:fm => { pub fn tfm_foo() {} },  // fm : target family
+    foo:ev => { pub fn tev_foo() {} },  // ev : target environment
+    foo:ed => { pub fn ted_foo() {} },  // ed : target endian
+    foo:pw => { pub fn tpw_foo() {} },  // pw : target pointer width
+    foo:vn => { pub fn tvn_foo() {} },  // vn : target vendor    
+    foo:at => { pub fn tat_foo() {} },  // at : target has atomic
+    foo:pn => { pub fn tpn_foo() {} },  // pn : panic feature
+    foo:ft => { pub fn tft_foo() {} },  // ft : feature
     _ => {
-        pub fn tar_foo() -> String {
-            String::from("tar:unknown")
+        pub fn twild_foo() -> String {
+            String::from("Test")
         }
     },
-    
 }
-
-// tf : target architecture feature
-
-// os : target operating system
-
-// fm : target family
-
-// ev : target environment
-
-// ed : target endian
-
-// pw : target pointer width
-
-// vn : target vendor
-
-// at : target has atomic
-
-// pn : panic feature
-
-// ft : feature
-
 
 /*************
  * MATCH_CFG *
  *************/
 // ar : target architecture
-fn mar_foo() -> String {
+fn match_foo() -> String {
     match_cfg!{
-        x86_64:ar => String::from("mar:x86_64"),
-        x86:ar => String::from("mar:x86"),
-        _ => String::from("mar:unknown")
+        foo:ar => String::from("tar_foo"),  // ar : target architecture
+        foo:tf => String::from("ttf_foo"),  // tf : target architecture feature
+        foo:os => String::from("tos_foo"),  // os : target operating system
+        foo:fm => String::from("tfm_foo"),  // fm : target family
+        foo:ev => String::from("tev_foo"),  // ev : target environment
+        foo:ed => String::from("ted_foo"),  // ed : target endian
+        foo:pw => String::from("tpw_foo"),  // pw : target pointer width
+        foo:vn => String::from("tvn_foo"),  // vn : target vendor    
+        foo:at => String::from("tat_foo"),  // at : target has atomic
+        foo:pn => String::from("tpn_foo"),  // pn : panic feature
+        foo:ft => String::from("tft_foo"),  // ft : feature
+        _ => String::from("021")
     }
 }
-
-// tf : target architecture feature
-
-// os : target operating system
-
-// fm : target family
-
-// ev : target environment
-
-// ed : target endian
-
-// pw : target pointer width
-
-// vn : target vendor
-
-// at : target has atomic
-
-// pn : panic feature
-
-// ft : feature
 
 /**************
  * CFG_TARGET *
  **************/
-// ar : target architecture
-#[cfg_target(x86_64:ar)]
-fn car_foo() -> String {
-    String::from("car:x86_64")
+#[cfg_target(foo:ar | foo:tf | foo:os | foo:fm | foo:ev | foo:ed | foo:pw | foo:vn | foo:at | foo:pn | foo:ft )]
+fn cfg_dismissed() -> String {
+    String::from("dismissed!")
 }
-#[cfg_target(x86:ar)]
-fn car_foo() -> String {
-    String::from("car:x86_64")
+#[cfg_target(!(foo:ar | foo:tf | foo:os | foo:fm | foo:ev | foo:ed | foo:pw | foo:vn | foo:at | foo:pn | foo:ft ))]
+fn cfg_foo() -> String {
+    String::from("completed!")
 }
-#[cfg_target(!(x86_64:ar | x86:ar))]
-fn car_foo() -> String {
-    String::from("car:unknown")
-}
-
-// tf : target architecture feature
-
-// os : target operating system
-
-// fm : target family
-
-// ev : target environment
-
-// ed : target endian
-
-// pw : target pointer width
-
-// vn : target vendor
-
-// at : target has atomic
-
-// pn : panic feature
-
-// ft : feature
 
 
 fn main() {
-    println!("{} {} {}", tar_foo(), mar_foo(), car_foo());
+    println!("{} {} {}", twild_foo(), match_foo(), cfg_foo());
 }

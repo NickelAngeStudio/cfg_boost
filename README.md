@@ -40,7 +40,7 @@ target_cfg!{
         pub use windows_mod::Struct2 as Struct2;
         pub fn windows_only_fn() {}
     },
-    _ => compile_error!("Platform not supported"),
+    _ => compile_error!{"Platform not supported"},
 }
 ```
 

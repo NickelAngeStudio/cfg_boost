@@ -1,0 +1,28 @@
+[env]
+##################
+# Custom aliases #
+##################
+target_cfg-pig = { value = "foo:c9 | foo:really_long_predicate_and_i_mean_really_longgggggggggg | foo:x", force = false }
+target_cfg-dog = { value = "foo:ar | foo:tf | foo:os | foo:fm | foo:ev | foo:ed | foo:pw | foo:vn | foo:at | foo:pn | foo:ft", force = false }
+target_cfg-cow = { value = "foo:c3 | foo:c4 | foo:c5 | foo:c6", force = false }
+target_cfg-parastratiosphecomyia_stratiosphecomyioides = { value = "foo:vn | foo:at | foo:pn | foo:ft", force = false }
+target_cfg-mosquito = { value = "foo:c1 | foo:c2 | foo:c3 | foo:c4 | foo:c5 | foo:c6 | foo:c7 | foo:c8 | foo:c9 | foo:really_long_predicate_and_i_mean_really_longgggggggggg | foo:x", force = false }
+target_cfg-frog = { value = "foo:pw | foo:vn | foo:at | foo:c3 | foo:c4 | foo:c5 | foo:c6", force = false }
+target_cfg-lion = { value = "foo:os | foo:fm | foo:ev | foo:ed | foo:pw", force = false }
+target_cfg-fish = { value = "foo:c8", force = false }
+target_cfg-b = { value = "foo:ar | foo:fm", force = false }
+
+#####################
+# Custom predicates #
+#####################
+target_cfg_predicate-c1 = { value = "custom1 = \"{}\"", force = true } 
+target_cfg_predicate-c2 = { value = "custom2 = \"{}\"", force = true }
+target_cfg_predicate-c3 = { value = "custom3 = \"{}\"", force = true } 
+target_cfg_predicate-c4 = { value = "custom4 = \"{}\"", force = true } 
+target_cfg_predicate-c5 = { value = "custom5 = \"{}\"", force = true } 
+target_cfg_predicate-c6 = { value = "custom6 = \"{}\"", force = true } 
+target_cfg_predicate-c7 = { value = "custom7 = \"{}\"", force = true } 
+target_cfg_predicate-c8 = { value = "custom8 = \"{}\"", force = true } 
+target_cfg_predicate-c9 = { value = "custom9 = \"{}\"", force = true } 
+target_cfg_predicate-really_long_predicate_and_i_mean_really_longgggggggggg = { value = "really_long_predicate_and_i_mean_really_longgggggggggg = \"{}\"", force = true }
+target_cfg_predicate-x = { value = "x = \"{}\"", force = true }
