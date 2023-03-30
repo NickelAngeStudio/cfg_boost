@@ -1,7 +1,7 @@
 //! Hello
 
-use ts::{ generate_match_content, generate_attr_content, generate_documented_content};
-use proc_macro::{TokenStream};
+use ts::{ generate_target_content, generate_attr_content, CfgBoostMacroSource};
+use proc_macro::{TokenStream, TokenTree, Group, Delimiter};
 
 /// Errors enumeration
 mod errors;
@@ -15,31 +15,20 @@ mod ts;
 /// Syntax tree
 mod syntax;
 
-/// Proc macro source enumeration to determinate matching macro source.
-pub(crate) enum TargetMacroSource {
-    /// Call come from target_cfg! macro.
-    TargetMacro,
-
-    /// Call come from match_cfg! macro.
-    MatchMacro,
-}
 
 #[proc_macro]
 pub fn target_cfg(item: TokenStream) -> TokenStream {
 
-    if cfg!(doc) {  // All branches are activated for documentation.
-        generate_documented_content(item)
-    } else {        // Only one branch is activated during compilation.
-        generate_match_content(item, TargetMacroSource::TargetMacro)
-    }
+    // Generate content from target_cfg! macro source.
+    generate_target_content(item, CfgBoostMacroSource::SelectMacro)
 
 }
 
 #[proc_macro]
 pub fn match_cfg(item: TokenStream) -> TokenStream {
 
-    // Generate content from match_cfg! macro source.
-    generate_match_content(item, TargetMacroSource::MatchMacro)
+    // Generate content from match_cfg! macro source and add braces around content.
+    TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace,generate_target_content(item, CfgBoostMacroSource::MatchMacro))))
 
 }
 

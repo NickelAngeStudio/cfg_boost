@@ -2,7 +2,16 @@ use std::{env, path::Path, fs};
 
 use proc_macro::{TokenStream, Group, Delimiter, TokenTree};
 
-use crate::{syntax::{Node, SyntaxTreeNode}, arm::TargetArm, errors::CfgBoostError, TargetMacroSource};
+use crate::{syntax::{Node, SyntaxTreeNode}, arm::TargetArm, errors::CfgBoostError};
+
+/// Tag used to detect if code is hidden. (Don't generate cfg_attr)
+pub const DOC_HIDDEN_TAG : &str = "#[doc(hidden)]";
+
+/// Key value of cargo.toml caching.
+const CFG_BOOST_CARGO_CACHE : &str = "CFG_BOOST_ATTR_DOC_SET";
+
+/// Tag to search in Cargo.toml
+const CFG_BOOST_DOCRS_TAG : &str = "[package.metadata.docs.rs]";
 
 /// Macro that create cfg_attr for items attributes from syntax tree.
 macro_rules! format_doc {
@@ -11,17 +20,26 @@ macro_rules! format_doc {
     }
 }
 
-/// Macro that create cfg targets from syntax tree.
+/// Macro that create cfg targets from syntax tree. Doc is ALWAYS allowed.
 macro_rules! format_cfg {
     ($tree:expr) => {
-        format!("#[cfg({})]", $tree.to_string())
+        format!("#[cfg(any(doc, {}))]", $tree.to_string())
     }
+}
+
+/// Proc macro source enumeration to determinate matching macro source.
+pub(crate) enum CfgBoostMacroSource {
+    /// Call come from target_cfg! macro.
+    SelectMacro,
+
+    /// Call come from match_cfg! macro.
+    MatchMacro,
 }
 
 
 /// Generate content from matching arm and macro source.
 #[inline(always)]
-pub(crate) fn generate_match_content(stream: TokenStream,  source : TargetMacroSource) -> TokenStream {
+pub(crate) fn generate_target_content(stream: TokenStream,  source : CfgBoostMacroSource) -> TokenStream {
 
     // TokenStream that accumulate content
     let mut content = TokenStream::new();
@@ -43,47 +61,68 @@ pub(crate) fn generate_match_content(stream: TokenStream,  source : TargetMacroS
             SyntaxTreeNode::EMPTY => cumul_tree = SyntaxTreeNode::all_node(SyntaxTreeNode::empty_node(), syntax_tree.clone()),  // Init cumulative tree
             SyntaxTreeNode::ALL(left, right) =>     // Cumulative tree is ALWAYS ALL after init
                 // Previous right node becomes negative and syntax nodes are added with all.
-                cumul_tree = SyntaxTreeNode::all_node(SyntaxTreeNode::all_node(left.clone(), SyntaxTreeNode::not_node(right.clone())), syntax_tree),
+                cumul_tree = SyntaxTreeNode::all_node(SyntaxTreeNode::all_node(left.clone(), SyntaxTreeNode::not_node(right.clone())), syntax_tree.clone()),
             _ => {},    // we don't talk about those Bruno.
         }
         
-        // 2.3. Create cfg header from cumulative
-        let cfg_ts = format_cfg!(cumul_tree).parse::<TokenStream>().unwrap();
-
-        // 2.4. Add to content according to target source.
-        match source {
-            TargetMacroSource::TargetMacro => {
-                // 2.4.1. Split item into vector of items
-                let items = split_items(arm.content.clone());
-
-                // 2.4.2. For each item in vector of items
-                for item in items {
-                    // 2.4.2.1. Add cfg header.
-                    content.extend(cfg_ts.clone()); 
-
-                    // 2.4.2.2. Add item to content
-                    content.extend(item);
-                }
-            },
-            TargetMacroSource::MatchMacro => {
-                // 2.4.1. Add cfg header.
-                content.extend(cfg_ts.clone()); 
-
-                // 2.4.2. Add braced content
-                content.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace, arm.content.clone()))));
-            },
-        }
+        // 2.3. Add to content according to target source.
+        content.extend(match source {
+            CfgBoostMacroSource::SelectMacro => generate_target_macro_content(&arm, cumul_tree.clone(), syntax_tree.clone()),
+            CfgBoostMacroSource::MatchMacro => generate_match_macro_content(&arm, cumul_tree.clone()),
+        });
     }
 
-    // 3. Add braces around content if from MatchMacro
-    match source {
-        TargetMacroSource::MatchMacro => content = TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace, content))),
-        _ => {}
-    }
-
-    // 4. Return content.
+    // 3. Return content.
     content
 
+}
+
+/// Generate Tokenstream for target_cfg! macro from TargetArm, cumulative and syntax nodes.
+#[inline(always)]
+fn generate_target_macro_content(arm : &TargetArm, cumul_tree : Node, syntax_tree : Node) -> TokenStream {
+
+    // TokenStream that accumulate content
+    let mut content = TokenStream::new();
+
+    // 2.3. Create cfg header from cumulative
+    let cfg_ts = format_cfg!(cumul_tree).parse::<TokenStream>().unwrap();
+
+    // 2.4.1. Split item into vector of items
+    let items = split_items(arm.content.clone());
+
+    // 2.4.2. For each item in vector of items
+    for item in items {
+        // 2.4.2.1. Add cfg header.
+        content.extend(cfg_ts.clone()); 
+
+        // 2.4.2.2. Add cfg_attr if not hidden
+        if !is_item_hidden(item.clone()) && get_if_docrs_from_cache() {  
+            content.extend(format_doc!(syntax_tree).parse::<TokenStream>().unwrap());
+        }
+
+        // 2.4.2.3. Add item to content
+        content.extend(item);
+    }
+
+    content
+
+}
+
+/// Generate Tokenstream for match_cfg! macro from TargetArm and cumulative node.
+#[inline(always)]
+fn generate_match_macro_content(arm : &TargetArm, cumul_tree : Node) -> TokenStream {
+
+    // TokenStream that accumulate content
+    let mut content = TokenStream::new();
+
+    // 1. Add cfg header.
+    content.extend(format_cfg!(cumul_tree).parse::<TokenStream>().unwrap()); 
+
+    // 2. Add braced content
+    content.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace, arm.content.clone()))));
+
+    // 3. Return content TokenStream
+    content
 }
 
 /// Generate a syntax tree from arm.
@@ -101,6 +140,7 @@ pub(crate) fn generate_syntax_tree(arm : &TargetArm) -> Node {
     }
 }
 
+/*
 /// Generate documented content with target labels.
 /// 
 /// Target labels are added only if [package.metadata.docs.rs] is in Cargo.toml.
@@ -152,7 +192,7 @@ pub(crate) fn generate_documented_content(stream: TokenStream) -> TokenStream {
     content
 
 }
-
+*/
 
 /// Split tokenstream in different [item](https://doc.rust-lang.org/reference/items.html) vector tokenstream.
 /// 
@@ -192,12 +232,6 @@ pub(crate) fn split_items(stream : TokenStream) -> Vec<TokenStream> {
 
     items
 }
-
-/// Key value of cargo.toml caching.
-const CFG_BOOST_CARGO_CACHE : &str = "CFG_BOOST_ATTR_DOC_SET";
-
-/// Tag to search in Cargo.toml
-const CFG_BOOST_DOCRS_TAG : &str = "[package.metadata.docs.rs]";
 
 /// Returns True if cfg-attr is generated for documentation labels.
 #[inline(always)]
@@ -248,8 +282,8 @@ pub(crate) fn generate_attr_content(attr : TokenStream, item : TokenStream) -> T
     // 2. Add #[cfg] to content
     content.extend(format_cfg!(syntax_tree).parse::<TokenStream>().unwrap());
 
-    // 3. Is Cargo.toml set up for target labels? If true, add cfg_attr header.
-    if cfg!(doc) && get_if_docrs_from_cache() {  
+    // 3. Is Cargo.toml set up for target labels and #[doc(hidden)] not set?
+    if !is_item_hidden(item.clone()) && get_if_docrs_from_cache() {  
         content.extend(format_doc!(syntax_tree).parse::<TokenStream>().unwrap());
     }
 
@@ -259,4 +293,12 @@ pub(crate) fn generate_attr_content(attr : TokenStream, item : TokenStream) -> T
     // 5. Write content to stream
     content        
 
+}
+
+/// Return true if item has #[doc(hidden)] tag.
+fn is_item_hidden(item : TokenStream) -> bool{
+    match item.to_string().find(DOC_HIDDEN_TAG){
+        Some(_) => true,
+        None => false,
+    }
 }

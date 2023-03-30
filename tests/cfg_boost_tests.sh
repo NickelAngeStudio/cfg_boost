@@ -146,54 +146,69 @@ run_test 020.rs "Test 020 completed!"
 
 
 # T21 Test all predefined predicates (value:predicate)
-run_test 021.rs "dfdsjsdfkjakjds" "--config target.'cfg(all(target_arch=\"x86\""
+run_test 021.rs "Test 021 completed!"
 
 
+# T22 Custom predicates missing
+run_test 022.rs "has no match! Is it added in config.toml"
+
+# Copy predicates
+mkdir ".cargo"
+cp -r "../tests/rs/pred.toml" ".cargo/config.toml"  
+
+# T23 Custom predicates added
+run_test 023.rs "Test 023 completed!"
+
+# T24 Test all predefined aliases
+run_test 024.rs "Test 024 completed!"
 
 
-# "ar" => Ok(format!("target_arch = \"{}\"", label)),
-# "tf" => Ok(format!("target_feature = \"{}\"", label)),
-# "os" => Ok(format!("target_os = \"{}\"", label)),
-# "fm" => Ok(format!("target_family = \"{}\"", label)),
-# "ev" => Ok(format!("target_env = \"{}\"", label)),
-# "ed" => Ok(format!("target_endian = \"{}\"", label)),
-# "pw" => Ok(format!("target_pointer_width = \"{}\"", label)),
-# "vn" => Ok(format!("target_vendor = \"{}\"", label)),
-# "at" => Ok(format!("target_has_atomic = \"{}\"", label)),
-# "pn" => Ok(format!("panic = \"{}\"", label)),
-# "ft" => Ok(format!("feature = \"{}\"", label)),
+# T25 Custom aliases missing
+run_test 025.rs "has no match! Is it added in config.toml"
 
-# T22 Create custom predicates and build them via arguments
+# Copy aliases
+cp -r "../tests/rs/alias.toml" ".cargo/config.toml" 
 
+# T26 Custom aliases added
+run_test 026.rs "Test 026 completed!"
 
-# T23 Test all predefined aliases and build them via arguments
-# "linux" => Ok(String::from("linux:os")),
-# "unix" => Ok(String::from("unix:fm")),
-# "windows" => Ok(String::from("windows:fm")),
-# "macos" => Ok(String::from("macos:os")),
-# "android" => Ok(String::from("android:os")),
-# "ios" => Ok(String::from("ios:os")),
-# "wasm" => Ok(String::from("wasm:fm")),
-# "desktop" => Ok(String::from("linux:os | windows:os | macos:os")),
-# "mobile" => Ok(String::from("android:os | ios:os")),
+# T27 Generate documentation without [package.metadata.docs.rs] and read generated file to make sure labels are NOT included.
+run_test 027.rs "Test 027 completed!"
+cargo doc
 
-
-# T24 Create custom aliases and build them via arguments
-
-
-# T25 Generate documentation without [package.metadata.docs.rs] and read generated file to make sure labels are NOT included.
-
-
-# T26 Generate documentation with [package.metadata.docs.rs] and read generated file to make sure labels are included.
-
+# HTML must NOT have label with class tab portability
+TOTAL_TESTS=$((TOTAL_TESTS+1))
+source=`cat target/doc/$PRJ_TEST_NAME/index.html`
+if [[ "$source" == *"stab portability"* ]]; then
+	echo -e "\033[1;34mTEST DOC.rs\033[0m        [\033[1;31mFAIL\033[0m]"
+else
+	TOTAL_PASSED=$((TOTAL_PASSED+1))
+	echo -e "\033[1;34mTEST DOC.rs\033[0m        [\033[1;32mPASS\033[0m]"
+fi
 
 # Add documentation metadata to test project 
-#echo "[package.metadata.docs.rs]" >> $PRJ_TEST_NAME/Cargo.toml
-#echo "all-features = true" >> $PRJ_TEST_NAME/Cargo.toml
-#echo "rustdoc-args = [\"--cfg\", \"docsrs\"]" >> $PRJ_TEST_NAME/Cargo.toml
+echo "[package.metadata.docs.rs]" >> Cargo.toml
+echo "all-features = true" >> Cargo.toml
+echo "rustdoc-args = [\"--cfg\", \"docsrs\"]" >> Cargo.toml
 
 
-# T27 Stress test. Generate main.rs with lot of valid uses.
+# T28 Generate documentation with [package.metadata.docs.rs] and read generated file to make sure labels are included.
+run_test 028.rs "Test 028 completed!"
+RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features
+
+# HTML must have label with class tab portability
+TOTAL_TESTS=$((TOTAL_TESTS+1))
+source=`cat target/doc/$PRJ_TEST_NAME/index.html`
+if [[ "$source" == *"stab portability"* ]]; then
+	TOTAL_PASSED=$((TOTAL_PASSED+1))
+	echo -e "\033[1;34mTEST DOC.rs\033[0m        [\033[1;32mPASS\033[0m]"
+else
+	echo -e "\033[1;34mTEST DOC.rs\033[0m        [\033[1;31mFAIL\033[0m]"
+fi
+
+
+
+# T29 Stress test. Generate main.rs with lot of valid uses.
 
 
 #########
