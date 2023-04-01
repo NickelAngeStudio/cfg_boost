@@ -189,7 +189,7 @@ impl TargetArm {
         if !(separator.0 || separator.1) {
             match ident.to_string().as_str() {
                 WILDCARD_BRANCH_STR => arm.arm_type = TargetArmType::Wildcard,  // Branch is a wildcard.
-                DOC_ALIAS => {  // Branch has doc set.
+                val if DOC_ALIAS.0.eq(val) => {  // Branch has doc set.
                     arm.is_doc = Some(!*is_negative);    // Set doc value
                     Self::add_ts_to_arm(TokenStream::from(token), arm, &arms, *separator); // Add token to attr or content.
                 },
@@ -215,7 +215,7 @@ impl TargetArm {
                 let grp_ts = TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis,self.attr.clone()))); 
 
                 // 2. Set attr to doc |
-                self.attr = format!("{} |", DOC_ALIAS).parse::<TokenStream>().unwrap();
+                self.attr = format!("{} |", DOC_ALIAS.0).parse::<TokenStream>().unwrap();
 
                 // 3. Extend with grp_ts
                 self.attr.extend(grp_ts);
@@ -224,8 +224,6 @@ impl TargetArm {
                 self.is_doc = Some(true);
             },
         }
-
-        
     }
 
     /// Add tokenstream to arm attr or content according to separator.

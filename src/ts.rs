@@ -2,16 +2,14 @@ use std::{env, path::Path, fs};
 
 use proc_macro::{TokenStream, Group, Delimiter, TokenTree};
 
-use crate::{syntax::{Node, SyntaxTreeNode}, arm::TargetArm, errors::CfgBoostError};
+use crate::{syntax::{Node, SyntaxTreeNode}, arm::TargetArm, errors::CfgBoostError, parse::DOC_ALIAS};
 
-/// Tag used to detect if code is hidden. (Don't generate cfg_attr)
-pub const DOC_HIDDEN_TAG : &str = "#[doc(hidden)]";
-
-/// Key value of cargo.toml caching.
-const CFG_BOOST_CARGO_CACHE : &str = "CFG_BOOST_ATTR_DOC_SET";
-
-/// Tag to search in Cargo.toml
-const CFG_BOOST_DOCRS_TAG : &str = "[package.metadata.docs.rs]";
+// Constants
+pub const DOC_HIDDEN_TAG : &str = "#[doc(hidden)]";                 // Tag used to detect if code is hidden. (Don't generate cfg_attr)
+const CFG_BOOST_CARGO_CACHE : &str = "CFG_BOOST_ATTR_DOC_SET";      // Key value of cargo.toml caching.
+const CFG_BOOST_DOCRS_TAG : &str = "[package.metadata.docs.rs]";    // Tag to search in Cargo.toml
+const CARGO_MANIFEST_DIR : &str = "CARGO_MANIFEST_DIR";             // Cargo manifest dir key
+const CARGO_MANIFEST_NAME : &str = "Cargo.toml";                    // Cargo manifest file name
 
 /// Macro that create cfg_attr for items attributes from syntax tree.
 macro_rules! format_doc {
@@ -200,7 +198,7 @@ pub(crate) fn get_if_docrs_from_cache() -> bool {
         },
         Err(_) => {
             // 2. Read Cargo.toml if no result
-            let str_path =  format!("{}/{}", env::var("CARGO_MANIFEST_DIR").unwrap(), "Cargo.toml");
+            let str_path =  format!("{}/{}", env::var(CARGO_MANIFEST_DIR).unwrap(), CARGO_MANIFEST_NAME);
             let file_path = Path::new(&str_path);
 
             match fs::read_to_string(file_path){
@@ -233,26 +231,67 @@ pub(crate) fn generate_attr_content(attr : TokenStream, item : TokenStream) -> T
 
     let mut content = TokenStream::new();
 
-    // 1. Generate syntax tree from attributes
+    // 1. Verify and set default doc attribute
+    let attr = set_attr_doc(attr);
+
+    // 2. Generate syntax tree from attributes
     let syntax_tree = SyntaxTreeNode::generate(attr.clone());
 
-    // 2. Add #[cfg] to content
+    // 3. Add #[cfg] to content
     content.extend(format_cfg!(syntax_tree).parse::<TokenStream>().unwrap());
 
-    // 3. Is Cargo.toml set up for target labels and #[doc(hidden)] not set?
+    // 4. Is Cargo.toml set up for target labels and #[doc(hidden)] not set?
     if !is_item_hidden(item.clone()) && get_if_docrs_from_cache() {  
         content.extend(format_doc!(syntax_tree).parse::<TokenStream>().unwrap());
     }
 
-    // 4. Add item to content.
+    // 5. Add item to content.
     content.extend(item);
 
-    // 5. Write content to stream
+    // 6. Write content to stream
     content        
 
 }
 
+/// Add default doc attribute to attributes if not present.
+/// Return ts created.
+#[inline(always)]
+fn set_attr_doc(attr : TokenStream) -> TokenStream{
+
+    let mut is_set = false;
+
+    // Verify if doc is set
+    for token in attr.clone() {
+        match token {
+            TokenTree::Ident(ident) => {
+                if ident.to_string().as_str().eq(DOC_ALIAS.0) {
+                    is_set = true;
+                }
+            },
+            _ => {},
+        }
+    }
+
+    if is_set { // If already set, change nothing
+        attr
+    } else {
+        // 1. Wrap attr in ()
+        let grp_ts = TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis,attr))); 
+
+        // 2. Set attr to doc |
+        let mut attr = format!("{} |", DOC_ALIAS.0).parse::<TokenStream>().unwrap();
+
+        // 3. Extend with grp_ts
+        attr.extend(grp_ts);
+
+        // 4. Return new attributes
+        attr
+    }
+
+}
+
 /// Return true if item has #[doc(hidden)] tag.
+#[inline(always)]
 fn is_item_hidden(item : TokenStream) -> bool{
     match item.to_string().find(DOC_HIDDEN_TAG){
         Some(_) => true,
