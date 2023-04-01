@@ -1,5 +1,5 @@
 // Test 010 : CfgBoostError::InvalidConfigurationPredicate corrected.
-use cfg_boost::{ cfg_target, target_cfg, match_cfg };
+use cfg_boost::{ attr_cfg, target_cfg, match_cfg };
 
 target_cfg!{
     x86_64:ar => {
@@ -23,12 +23,12 @@ fn foo2() -> String {
     }
 }
 
-#[cfg_target(x86_64:ar)]
+#[attr_cfg(x86_64:ar)]
 fn foo3() -> String {
     String::from("completed!")
 }
 
-#[cfg_target(!x86_64:ar)]
+#[attr_cfg(!x86_64:ar)]
 fn foo3() -> String {
     String::from("completed!")
 }

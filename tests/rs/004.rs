@@ -1,8 +1,8 @@
 // Test 004 : Empty nodes error corrected.
-use cfg_boost::{ cfg_target };
+use cfg_boost::{ attr_cfg };
 
 
-#[cfg_target(desktop)]
+#[attr_cfg(desktop)]
 fn foo() -> String {
     String::from("Test 004 completed!")
 }

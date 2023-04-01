@@ -1,8 +1,8 @@
 // Test 005 : CfgBoostError::InvalidCharacter.
-use cfg_boost::{ cfg_target };
+use cfg_boost::{ attr_cfg };
 
 
-#[cfg_target(linux ^ windows ^ macos)]
+#[attr_cfg(linux ^ windows ^ macos)]
 fn foo() -> String {
     String::from("Test 005 completed!")
 }

@@ -23,17 +23,21 @@ macro_rules! format_doc {
 /// Macro that create cfg targets from syntax tree. Doc is ALWAYS allowed.
 macro_rules! format_cfg {
     ($tree:expr) => {
-        format!("#[cfg(any(doc, {}))]", $tree.to_string())
+        format!("#[cfg({})]", $tree.to_string())
     }
 }
 
 /// Proc macro source enumeration to determinate matching macro source.
+#[derive(Clone, Copy)]
 pub(crate) enum CfgBoostMacroSource {
     /// Call come from target_cfg! macro.
-    SelectMacro,
+    TargetMacro,
 
     /// Call come from match_cfg! macro.
     MatchMacro,
+
+    /// Call come from single_cfg! macro.
+    SingleMacro,
 }
 
 
@@ -45,7 +49,7 @@ pub(crate) fn generate_target_content(stream: TokenStream,  source : CfgBoostMac
     let mut content = TokenStream::new();
 
     // 1. Extract target arms
-    let arms = TargetArm::extract(stream.clone());
+    let arms = TargetArm::extract(stream.clone(), source);
 
     // 2. Create cumulative tree that guard branchs
     let mut cumul_tree = SyntaxTreeNode::empty_node();
@@ -67,8 +71,8 @@ pub(crate) fn generate_target_content(stream: TokenStream,  source : CfgBoostMac
         
         // 2.3. Add to content according to target source.
         content.extend(match source {
-            CfgBoostMacroSource::SelectMacro => generate_target_macro_content(&arm, cumul_tree.clone(), syntax_tree.clone()),
             CfgBoostMacroSource::MatchMacro => generate_match_macro_content(&arm, cumul_tree.clone()),
+            _ => generate_target_macro_content(&arm, cumul_tree.clone(), syntax_tree.clone()),
         });
     }
 
@@ -85,7 +89,7 @@ fn generate_target_macro_content(arm : &TargetArm, cumul_tree : Node, syntax_tre
     let mut content = TokenStream::new();
 
     // 2.3. Create cfg header from cumulative
-    let cfg_ts = format_cfg!(cumul_tree).parse::<TokenStream>().unwrap();
+    let cfg_ts = format_cfg!(cumul_tree.clone()).parse::<TokenStream>().unwrap();
 
     // 2.4.1. Split item into vector of items
     let items = split_items(arm.content.clone());
@@ -95,15 +99,22 @@ fn generate_target_macro_content(arm : &TargetArm, cumul_tree : Node, syntax_tre
         // 2.4.2.1. Add cfg header.
         content.extend(cfg_ts.clone()); 
 
-        // 2.4.2.2. Add cfg_attr if not hidden
-        if !is_item_hidden(item.clone()) && get_if_docrs_from_cache() {  
-            content.extend(format_doc!(syntax_tree).parse::<TokenStream>().unwrap());
+        // 2.4.2.2. Add cfg_attr if not hidden and arm.is_doc is Some(true)
+        match arm.is_doc{
+            Some(is_doc) => if is_doc && !is_item_hidden(item.clone()) && get_if_docrs_from_cache() {  
+                content.extend(format_doc!(match arm.arm_type {
+                    crate::arm::TargetArmType::Normal => syntax_tree.clone(),       // Normal arm uses Syntax tree for cfg_attr
+                    crate::arm::TargetArmType::Wildcard => cumul_tree.clone(),      // Wildcard uses cumulative tree
+                }).parse::<TokenStream>().unwrap());
+            },
+            None => {}, // None are not generated
         }
-
+        
         // 2.4.2.3. Add item to content
         content.extend(item);
     }
 
+    // 3. Return content generated
     content
 
 }
@@ -139,60 +150,6 @@ pub(crate) fn generate_syntax_tree(arm : &TargetArm) -> Node {
         crate::arm::TargetArmType::Wildcard => SyntaxTreeNode::wildcard_node(),
     }
 }
-
-/*
-/// Generate documented content with target labels.
-/// 
-/// Target labels are added only if [package.metadata.docs.rs] is in Cargo.toml.
-#[inline(always)]
-pub(crate) fn generate_documented_content(stream: TokenStream) -> TokenStream {
-
-    // TokenStream that accumulate content
-    let mut content = TokenStream::new();
-
-     // 1. Extract target arms
-     let arms = TargetArm::extract(stream.clone());
-
-    if get_if_docrs_from_cache() {  // If we generate target labels
-
-        // 2. For each arm
-        for arm in arms {
-
-            // 3. Generate syntax tree
-            let syntax_tree = generate_syntax_tree(&arm);
-    
-            // 4. Create cfg_attr header
-            let attr_ts = format_doc!(syntax_tree).parse::<TokenStream>().unwrap();
-
-            // 5. Split item into vector of items
-            let items = split_items(stream.clone());
-
-            // 6. For each item in vector of items
-            for item in items {
-                // 6.1. Add attr header.
-                content.extend(attr_ts.clone()); 
-
-                // 6.2. Add item to content
-                content.extend(item);
-            }
-
-        }
-
-    } else {
-        // 2. For each arm
-        for arm in arms {
-            // 3. Add content to arm
-            content.extend(arm.content);
-        }
-
-    }
-
-
-    // Return content generated
-    content
-
-}
-*/
 
 /// Split tokenstream in different [item](https://doc.rust-lang.org/reference/items.html) vector tokenstream.
 /// 

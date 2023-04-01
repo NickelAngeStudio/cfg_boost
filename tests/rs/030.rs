@@ -1,13 +1,13 @@
 // Enable experimental features for documentation.
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-// Test 029 : CfgBoostError::WildcardArmOnSingle error.
+// Test 030 : CfgBoostError::WildcardArmOnSingle corrected.
 use cfg_boost::{ single_cfg };
 
 
-single_cfg!{ _ => {
+single_cfg!{ desktop => {
     pub fn completed() {
-        println!("Test 029 completed!");
+        println!("Test 030 completed!");
     }
 }
 
