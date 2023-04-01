@@ -1,5 +1,5 @@
 // Test 021 : Predefined predicates.
-use cfg_boost::{ target_cfg, match_cfg, cfg_target };
+use cfg_boost::{ target_cfg, match_cfg, attr_cfg };
 
 /**************
  * TARGET_CFG *
@@ -45,13 +45,13 @@ fn match_foo() -> String {
 }
 
 /**************
- * CFG_TARGET *
+ * attr_cfg *
  **************/
-#[cfg_target(foo:ar | foo:tf | foo:os | foo:fm | foo:ev | foo:ed | foo:pw | foo:vn | foo:at | foo:pn | foo:ft )]
+#[attr_cfg(foo:ar | foo:tf | foo:os | foo:fm | foo:ev | foo:ed | foo:pw | foo:vn | foo:at | foo:pn | foo:ft )]
 fn cfg_dismissed() -> String {
     String::from("dismissed!")
 }
-#[cfg_target(!(foo:ar | foo:tf | foo:os | foo:fm | foo:ev | foo:ed | foo:pw | foo:vn | foo:at | foo:pn | foo:ft ))]
+#[attr_cfg(!(foo:ar | foo:tf | foo:os | foo:fm | foo:ev | foo:ed | foo:pw | foo:vn | foo:at | foo:pn | foo:ft ))]
 fn cfg_foo() -> String {
     String::from("completed!")
 }

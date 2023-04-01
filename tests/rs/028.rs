@@ -2,7 +2,7 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 // Test 028 : Documentation with [package.metadata.docs.rs].
-use cfg_boost::{ target_cfg, cfg_target };
+use cfg_boost::{ target_cfg, attr_cfg };
 
 
 
@@ -95,7 +95,7 @@ impl JohnDoe {
             }
 
         },
-        _ {
+        _ => {
             /// Create new JohnDoe
             pub fn new() -> JohnDoe{
                 JohnDoe { speech : String::from("unknown") }
@@ -111,21 +111,21 @@ impl JohnDoe {
 }
 
 /**************
- * CFG_TARGET *
+ * attr_cfg *
  **************/
-#[cfg_target(linux)]
+#[attr_cfg(linux)]
 /// This struct is for linux only
 pub struct LinuxOnly2 {
     a : u64
 }
 
-#[cfg_target(windows)]
+#[attr_cfg(windows)]
 /// This struct is for Windows only
 pub struct WindowsOnly2 {
     a : u64
 }
 
-#[cfg_target(!linux)]
+#[attr_cfg(!linux)]
 /// This function is NOT for linux
 pub fn NotLinux() {
 }

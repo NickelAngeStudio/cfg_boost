@@ -1,5 +1,5 @@
 // Test 007 : CfgBoostError::AliasNotFound.
-use cfg_boost::{ cfg_target, target_cfg, match_cfg };
+use cfg_boost::{ attr_cfg, target_cfg, match_cfg };
 
 target_cfg!{
     desktap => {
@@ -19,7 +19,7 @@ fn foo2() -> String {
     }
 }
 
-#[cfg_target(desktap)]
+#[attr_cfg(desktap)]
 fn foo3() -> String {
     String::from("completed!")
 }

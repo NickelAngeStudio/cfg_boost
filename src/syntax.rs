@@ -1,21 +1,22 @@
 // Syntax tree used to generate configuration from TokenStream.
 
-use std::{rc::Rc, env};
+use std::{rc::Rc};
 use proc_macro::{TokenStream, TokenTree};
 
-use crate::{errors::CfgBoostError};
+use crate::{errors::CfgBoostError, parse::{parse_alias_from_label, parse_cfg_predicate}};
 
 /// SyntaxTreeNode in a RC 
 pub(crate) type Node = Rc<SyntaxTreeNode>;
 
 /// Negative symbol
-const NEGATIVE_SYMBOL : char = '!';
+pub(crate) const NEGATIVE_SYMBOL : char = '!';
 
 /// Symbol for AND.
 const AND_SYMBOL : char = '&';
 
 /// Symbol for OR.
 const OR_SYMBOL : char = '|';
+
 
 /// Syntax tree node used to parse attribute tokens.
 #[derive(Debug)]
@@ -265,84 +266,6 @@ pub(crate) fn split_tokenstream_at_operator(stream : TokenStream) -> Option<(cha
         '?' => None,    // No split happened
         _ => Some((operator, left, right)), // Split happened
 
-    }
-
-}
-
-
-/// Parse tokens to generate configuration predicate.
-/// 
-/// Error(s)
-/// Returns Err([SyntaxParseError::InvalidConfigurationPredicate]) if predicate not defined.
-#[inline(always)]
-pub fn parse_cfg_predicate(tokens : &str) -> Result<String, CfgBoostError> {
-
-    // 1. Extract label and predicate from tokens
-    match tokens.find(":") {
-        Some(position) => {
-            let label = tokens[0..position].trim();
-            let cfg_opt = tokens[position + 1..].trim();
-
-            // 2. Try to match environment variable to see if predicate was defined in config.toml.
-            match env::var(format!("target_cfg_predicate-{}", cfg_opt)) {
-                Ok(cfg_value) => Ok(String::from(cfg_value.replace("{}", label))),
-                Err(_) => match cfg_opt {   // 2.2 Try to match default predicate
-                        // Default configuration predicates
-                        "ar" => Ok(format!("target_arch = \"{}\"", label)),
-                        "tf" => Ok(format!("target_feature = \"{}\"", label)),
-                        "os" => Ok(format!("target_os = \"{}\"", label)),
-                        "fm" => Ok(format!("target_family = \"{}\"", label)),
-                        "ev" => Ok(format!("target_env = \"{}\"", label)),
-                        "ed" => Ok(format!("target_endian = \"{}\"", label)),
-                        "pw" => Ok(format!("target_pointer_width = \"{}\"", label)),
-                        "vn" => Ok(format!("target_vendor = \"{}\"", label)),
-                        "at" => Ok(format!("target_has_atomic = \"{}\"", label)),
-                        "pn" => Ok(format!("panic = \"{}\"", label)),
-                        "ft" => Ok(format!("feature = \"{}\"", label)),
-        
-                        // Not found, raise error.
-                        _ => Err(CfgBoostError::InvalidConfigurationPredicate(String::from(cfg_opt))),
-                    },
-            }
-        },
-
-        // Should never happen but good to have in hand
-        None => Err(CfgBoostError::InvalidConfigurationPredicate(String::from(tokens))),
-    } 
-
-}
-
-
-/// Parse label to generate alias content.
-/// 
-/// Error(s)
-/// Returns Err([TargetCfgError::AliasNotFound]) if alias not defined.
-#[inline(always)]
-pub fn parse_alias_from_label(label : &str) -> Result<String, CfgBoostError> {
-
-    // 1. Try to match environment variable to see if it was defined in config.toml.
-    match env::var(format!("target_cfg-{}", label)) {
-        Ok(alias) => Ok(alias.clone()),     
-        Err(_e) => {
-            // 2. Try to match predefined alias
-            match label {
-                // Predefined OS aliases
-                "linux" => Ok(String::from("linux:os")),
-                "unix" => Ok(String::from("unix:fm")),
-                "windows" => Ok(String::from("windows:os")),
-                "macos" => Ok(String::from("macos:os")),
-                "android" => Ok(String::from("android:os")),
-                "ios" => Ok(String::from("ios:os")),
-                "wasm" => Ok(String::from("wasm:fm")),
-
-                // Predefined platform aliases
-                "desktop" => Ok(String::from("linux:os | windows:os | macos:os")),
-                "mobile" => Ok(String::from("android:os | ios:os")),
-
-                // Not found, raise error.
-                _ => Err(CfgBoostError::AliasNotFound(String::from(label))),
-            }
-        },
     }
 
 }

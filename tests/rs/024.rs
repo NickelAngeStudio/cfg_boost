@@ -1,5 +1,5 @@
 // Test 024 : Predefined aliases.
-use cfg_boost::{ target_cfg, match_cfg, cfg_target };
+use cfg_boost::{ target_cfg, match_cfg, attr_cfg };
 
 /**************
  * TARGET_CFG *
@@ -39,14 +39,14 @@ fn match_foo() -> String {
 
 
 /**************
- * CFG_TARGET *
+ * attr_cfg *
  **************/
-#[cfg_target(linux | unix | windows | macos | android | ios | wasm | desktop | mobile)]
+#[attr_cfg(linux | unix | windows | macos | android | ios | wasm | desktop | mobile)]
 fn cfg_foo() -> String {
     String::from("Test 024 completed!")
 }
 
-#[cfg_target(!(linux | unix | windows | macos | android | ios | wasm | desktop | mobile))]
+#[attr_cfg(!(linux | unix | windows | macos | android | ios | wasm | desktop | mobile))]
 fn cfg_dismissed() -> String {
     String::from("dismissed!")
 }

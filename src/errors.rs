@@ -29,8 +29,14 @@ pub enum CfgBoostError {
     /// Happens when a content separator `=>` is malformed.
     ContentSeparatorError,
 
-    /// Happens when wildcard arm is not set.
+    /// Happens when wildcard arm is not set for target_cfg! and match_cfg!.
     WildcardArmMissing,
+
+    /// Happens when wildcard arm is set when using single_cfg!
+    WildcardArmOnSingle,
+
+    /// Happens when single_cfg! has more than 1 arm.
+    SingleMultipleArms,
 }
 
 /// Error message implementation.
@@ -47,6 +53,8 @@ impl CfgBoostError {
             CfgBoostError::ArmSeparatorMissing => format!("Arm syntax incorrect. Are you missing a separator `{}` between arms?", ARM_SEPARATOR),
             CfgBoostError::ContentSeparatorError => format!("Arm syntax incorrect. Is your arm separator `{}{}` syntax Ok?", CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1),
             CfgBoostError::WildcardArmMissing => format!("Ensure that all possible cases are being handled by adding a match arm with a `{}` wildcard pattern.", WILDCARD_BRANCH),
+            CfgBoostError::WildcardArmOnSingle => format!("single_cfg! macro cannot have a `{}` wildcard pattern.", WILDCARD_BRANCH),
+            CfgBoostError::SingleMultipleArms => format!("single_cfg! can only have 1 arm."),
         }
     }
 }

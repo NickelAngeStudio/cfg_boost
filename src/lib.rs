@@ -12,6 +12,9 @@ mod arm;
 /// Tokenstream generator functions
 mod ts;
 
+/// Alias and predicate parsing
+mod parse;
+
 /// Syntax tree
 mod syntax;
 
@@ -20,9 +23,18 @@ mod syntax;
 pub fn target_cfg(item: TokenStream) -> TokenStream {
 
     // Generate content from target_cfg! macro source.
-    generate_target_content(item, CfgBoostMacroSource::SelectMacro)
+    generate_target_content(item, CfgBoostMacroSource::TargetMacro)
 
 }
+
+#[proc_macro]
+pub fn single_cfg(item: TokenStream) -> TokenStream {
+
+    // Generate content from single_cfg! macro source.
+    generate_target_content(item, CfgBoostMacroSource::SingleMacro)
+
+}
+
 
 #[proc_macro]
 pub fn match_cfg(item: TokenStream) -> TokenStream {
@@ -32,8 +44,10 @@ pub fn match_cfg(item: TokenStream) -> TokenStream {
 
 }
 
+
+
 #[proc_macro_attribute]
-pub fn cfg_target(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn attr_cfg(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // Generate attribute content.
     generate_attr_content(attr, item)

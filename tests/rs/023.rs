@@ -1,5 +1,5 @@
 // Test 023 : Custom predicates.
-use cfg_boost::{ target_cfg, match_cfg, cfg_target };
+use cfg_boost::{ target_cfg, match_cfg, attr_cfg };
 
 /**************
  * TARGET_CFG *
@@ -47,14 +47,14 @@ fn match_foo() -> String {
 
 
 /**************
- * CFG_TARGET *
+ * attr_cfg *
  **************/
-#[cfg_target(foo:c1 | foo:c2 | foo:c3 | foo:c4 | foo:c5 | foo:c6 | foo:c7 | foo:c8 | foo:c9 | foo:really_long_predicate_and_i_mean_really_longgggggggggg | foo:x)]
+#[attr_cfg(foo:c1 | foo:c2 | foo:c3 | foo:c4 | foo:c5 | foo:c6 | foo:c7 | foo:c8 | foo:c9 | foo:really_long_predicate_and_i_mean_really_longgggggggggg | foo:x)]
 fn cfg_dismissed() -> String {
     String::from("dismissed!")
 }
 
-#[cfg_target(!(foo:c1 | foo:c2 | foo:c3 | foo:c4 | foo:c5 | foo:c6 | foo:c7 | foo:c8 | foo:c9 | foo:really_long_predicate_and_i_mean_really_longgggggggggg | foo:x))]
+#[attr_cfg(!(foo:c1 | foo:c2 | foo:c3 | foo:c4 | foo:c5 | foo:c6 | foo:c7 | foo:c8 | foo:c9 | foo:really_long_predicate_and_i_mean_really_longgggggggggg | foo:x))]
 fn cfg_foo() -> String {
     String::from("completed!")
 }

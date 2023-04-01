@@ -207,8 +207,16 @@ else
 fi
 
 
+# T29~T30 CfgBoostError::WildcardArmOnSingle error.
+run_test 029.rs "single_cfg! macro cannot have a"
+run_test 030.rs "Test 030 completed!"
 
-# T29 Stress test. Generate main.rs with lot of valid uses.
+# T31~T32 CfgBoostError::SingleMultipleArms error.
+run_test 031.rs "single_cfg! can only have 1 arm."
+run_test 032.rs "Test 032 completed!"
+
+
+# T33 Stress test. Generate main.rs with lot of valid uses.
 
 
 #########
