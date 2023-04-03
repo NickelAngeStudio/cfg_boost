@@ -22,5 +22,7 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose --no-fail-fast --all-targets
+    - name: Nightly toolchain
+      run: rustup toolchain install nightly-x86_64-unknown-linux-gnu
     - name: Integration tests
       run: bash tests/cfg_boost_tests.sh
