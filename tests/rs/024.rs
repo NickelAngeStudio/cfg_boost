@@ -1,5 +1,5 @@
 // Test 024 : Predefined aliases.
-use cfg_boost::{ target_cfg, match_cfg, attr_cfg };
+use cfg_boost::{ target_cfg, match_cfg, meta_cfg };
 
 /**************
  * TARGET_CFG *
@@ -14,7 +14,6 @@ target_cfg!{
     wasm => { pub fn tpw_foo() {} },        // wasm
     desktop => { pub fn tvn_foo() {} },     // desktop
     mobile => { pub fn tat_foo() {} },      // mobile
-    _ => { },
 }
 
 /*************
@@ -39,14 +38,14 @@ fn match_foo() -> String {
 
 
 /**************
- * attr_cfg *
+ * meta_cfg *
  **************/
-#[attr_cfg(linux | unix | windows | macos | android | ios | wasm | desktop | mobile)]
+#[meta_cfg(linux | unix | windows | macos | android | ios | wasm | desktop | mobile)]
 fn cfg_foo() -> String {
     String::from("Test 024 completed!")
 }
 
-#[attr_cfg(!(linux | unix | windows | macos | android | ios | wasm | desktop | mobile))]
+#[meta_cfg(!(linux | unix | windows | macos | android | ios | wasm | desktop | mobile))]
 fn cfg_dismissed() -> String {
     String::from("dismissed!")
 }

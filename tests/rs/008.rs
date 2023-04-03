@@ -1,5 +1,5 @@
 // Test 008 : CfgBoostError::AliasNotFound corrected.
-use cfg_boost::{ attr_cfg, target_cfg, match_cfg };
+use cfg_boost::{ meta_cfg, target_cfg, match_cfg };
 
 target_cfg!{
     desktop => {
@@ -7,7 +7,6 @@ target_cfg!{
             String::from("Test")
         }
     },
-    _ => {}
 }
 
 fn foo2() -> String {
@@ -19,7 +18,7 @@ fn foo2() -> String {
     }
 }
 
-#[attr_cfg(desktop)]
+#[meta_cfg(desktop)]
 fn foo3() -> String {
     String::from("completed!")
 }

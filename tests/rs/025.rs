@@ -1,5 +1,5 @@
 // Test 025 : Custom aliases missing.
-use cfg_boost::{ target_cfg, match_cfg, attr_cfg };
+use cfg_boost::{ target_cfg, match_cfg, meta_cfg };
 
 /**************
  * TARGET_CFG *
@@ -14,11 +14,6 @@ target_cfg!{
     lion => { pub fn tpw_foo() {} },        // lion
     fish => { pub fn tvn_foo() {} },     // fish
     b => { pub fn tat_foo() {} },      // b
-    _ => { 
-        pub fn twild_foo() -> String {
-            String::from("Test")
-        }
-    },
 }
 
 /*************
@@ -42,15 +37,15 @@ fn match_foo() -> String {
 
 
 /**************
- * attr_cfg *
+ * meta_cfg *
  **************/
-#[attr_cfg(pig | dog | cow | parastratiosphecomyia_stratiosphecomyioides | mosquito | frog | lion | fish | b)]
+#[meta_cfg(pig | dog | cow | parastratiosphecomyia_stratiosphecomyioides | mosquito | frog | lion | fish | b)]
 fn cfg_dismissed() -> String {
     String::from("dismissed!")
 }
 
 
-#[attr_cfg(!(pig | dog | cow | parastratiosphecomyia_stratiosphecomyioides | mosquito | frog | lion | fish | b))]
+#[meta_cfg(!(pig | dog | cow | parastratiosphecomyia_stratiosphecomyioides | mosquito | frog | lion | fish | b))]
 fn cfg_foo() -> String {
     String::from("Test 024 completed!")
 }

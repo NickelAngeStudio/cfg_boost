@@ -1,8 +1,8 @@
 // Test 003 : Empty nodes.
-use cfg_boost::{ attr_cfg };
+use cfg_boost::{ meta_cfg };
 
 
-#[attr_cfg()]
+#[meta_cfg()]
 fn foo() -> String {
     String::from("Test 003 completed!")
 }

@@ -99,12 +99,21 @@ impl TargetArm {
     fn verify_arms_integrity(macro_src : CfgBoostMacroSource, arms: &mut Vec<TargetArm>) {
         // Verify Wildcard arm according to macro source and that single macro has only 1 arm.
         match macro_src {
-            CfgBoostMacroSource::SingleMacro => {
+            CfgBoostMacroSource::TargetMacro => {
                 if Self::has_wild_arm(&arms){  // Single macro doesn't accept wildcard arms!
-                    panic!("{}", CfgBoostError::WildcardArmOnSingle.message(""));
+                    panic!("{}", CfgBoostError::WildcardArmOnTarget.message(""));
                 }
-                if arms.len() > 1 {  // Single macro doesn't more than 1 arm.
-                    panic!("{}", CfgBoostError::SingleMultipleArms.message(""));
+
+                // For each arm with is_doc == None, set_default_doc
+                for arm in arms {
+                    match arm.is_doc{
+                        Some(_) => {},  // Already set, do nothing
+                        None => arm.set_default_doc(macro_src), // Set default value according to macro source.
+                    }
+
+                    if Self::is_inside_function(arm) {  // If arm is inside a function, panic!
+                        panic!("{}", CfgBoostError::TargetInFunction.message(""));
+                    }
                 }
             },
             _ => {  
@@ -114,14 +123,29 @@ impl TargetArm {
             }
         }
 
-        // For each arm with is_doc == None, set_default_doc
-        for arm in arms {
-            match arm.is_doc{
-                Some(_) => {},  // Already set, do nothing
-                None => arm.set_default_doc(macro_src), // Set default value according to macro source.
+        
+
+    }
+
+    /// Returns true if arm of macro is inside a function.
+    /// 
+    /// This function tries to detect `let` and flow of control keywords to determine if inside or not.
+    /// 
+    /// Since accuracy isn't 100%, it isn't used to validate that match_cfg! is inside a function. Only to detect if target_cfg! is.
+    #[inline(always)]
+    fn is_inside_function(arm: &TargetArm) -> bool {
+
+        for t in arm.content.clone() {
+            match t {
+                proc_macro::TokenTree::Ident(ident) => match ident.to_string().as_str() {
+                    "let" | "if" | "else" | "loop" | "break" | "while" | "for" | "match" | "println" | "panic"   => return true,    // Those keyword are only found inside functions.
+                    _ => {},
+                },
+                _ => {},
             }
         }
 
+        false
     }
 
     /// Extract group tokens from Tokenstream
@@ -188,7 +212,13 @@ impl TargetArm {
     fn extract_ident_ts(ident : Ident, is_negative : &mut bool, arm : &mut TargetArm, arms : &mut Vec<TargetArm>, token : TokenTree, separator : &mut (bool, bool)) {
         if !(separator.0 || separator.1) {
             match ident.to_string().as_str() {
-                WILDCARD_BRANCH_STR => arm.arm_type = TargetArmType::Wildcard,  // Branch is a wildcard.
+                WILDCARD_BRANCH_STR => {
+                    if arm.attr.is_empty() {    // Branch is a wildcard.
+                        arm.arm_type = TargetArmType::Wildcard;
+                    } else {
+                        Self::add_ts_to_arm(TokenStream::from(token), arm, &arms, *separator); // Add token to attr or content.
+                    }
+                },  
                 val if DOC_ALIAS.0.eq(val) => {  // Branch has doc set.
                     arm.is_doc = Some(!*is_negative);    // Set doc value
                     Self::add_ts_to_arm(TokenStream::from(token), arm, &arms, *separator); // Add token to attr or content.
@@ -270,4 +300,6 @@ impl TargetArm {
         // If no match, return false
         false
     }
+
+
 }

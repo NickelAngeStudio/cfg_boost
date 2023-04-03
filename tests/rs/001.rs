@@ -7,7 +7,6 @@ target_cfg!{
 			panic!("Should not be called!");
 		}
 	},
-    _ => {},
 }
 
 fn main() {

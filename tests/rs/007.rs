@@ -1,13 +1,12 @@
 // Test 007 : CfgBoostError::AliasNotFound.
-use cfg_boost::{ attr_cfg, target_cfg, match_cfg };
+use cfg_boost::{ meta_cfg, target_cfg, match_cfg };
 
 target_cfg!{
     desktap => {
         pub fn foo1() -> String {
             String::from("Test")
         }
-    },
-    _ => {}
+    }
 }
 
 fn foo2() -> String {
@@ -19,7 +18,7 @@ fn foo2() -> String {
     }
 }
 
-#[attr_cfg(desktap)]
+#[meta_cfg(desktap)]
 fn foo3() -> String {
     String::from("completed!")
 }

@@ -1,5 +1,5 @@
 // Test 021 : Predefined predicates.
-use cfg_boost::{ target_cfg, match_cfg, attr_cfg };
+use cfg_boost::{ target_cfg, match_cfg, meta_cfg };
 
 /**************
  * TARGET_CFG *
@@ -16,11 +16,6 @@ target_cfg!{
     foo:at => { pub fn tat_foo() {} },  // at : target has atomic
     foo:pn => { pub fn tpn_foo() {} },  // pn : panic feature
     foo:ft => { pub fn tft_foo() {} },  // ft : feature
-    _ => {
-        pub fn twild_foo() -> String {
-            String::from("Test")
-        }
-    },
 }
 
 /*************
@@ -45,18 +40,18 @@ fn match_foo() -> String {
 }
 
 /**************
- * attr_cfg *
+ * meta_cfg *
  **************/
-#[attr_cfg(foo:ar | foo:tf | foo:os | foo:fm | foo:ev | foo:ed | foo:pw | foo:vn | foo:at | foo:pn | foo:ft )]
+#[meta_cfg(foo:ar | foo:tf | foo:os | foo:fm | foo:ev | foo:ed | foo:pw | foo:vn | foo:at | foo:pn | foo:ft )]
 fn cfg_dismissed() -> String {
     String::from("dismissed!")
 }
-#[attr_cfg(!(foo:ar | foo:tf | foo:os | foo:fm | foo:ev | foo:ed | foo:pw | foo:vn | foo:at | foo:pn | foo:ft ))]
+#[meta_cfg(!(foo:ar | foo:tf | foo:os | foo:fm | foo:ev | foo:ed | foo:pw | foo:vn | foo:at | foo:pn | foo:ft ))]
 fn cfg_foo() -> String {
     String::from("completed!")
 }
 
 
 fn main() {
-    println!("{} {} {}", twild_foo(), match_foo(), cfg_foo());
+    println!("{} {} {}", "Test", match_foo(), cfg_foo());
 }
