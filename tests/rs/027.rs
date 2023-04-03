@@ -1,5 +1,5 @@
 // Test 027 : Documentation without [package.metadata.docs.rs].
-use cfg_boost::{ target_cfg, attr_cfg };
+use cfg_boost::{ target_cfg, meta_cfg };
 
 
 
@@ -32,15 +32,6 @@ target_cfg!{
 
         }
     },
-
-
-    _ => { 
-        /// This enum is only Wildcard
-        pub enum Wildcard{
-            Wild1,
-            Wild2
-        }
-    },
 }
 
 
@@ -57,7 +48,6 @@ target_cfg!{
 
         }
     },
-    _ => { },
 }
 
 
@@ -92,37 +82,26 @@ impl JohnDoe {
             }
 
         },
-        _ => {
-            /// Create new JohnDoe
-            pub fn new() -> JohnDoe{
-                JohnDoe { speech : String::from("unknown") }
-            }
-
-            /// Make John Doe talk
-            pub fn talk(&self) {
-                println!("{}", self.speech);
-            }
-        }
 
     }
 }
 
 /**************
- * attr_cfg *
+ * meta_cfg *
  **************/
-#[attr_cfg(linux)]
+#[meta_cfg(linux)]
 /// This struct is for linux only
 pub struct LinuxOnly2 {
     a : u64
 }
 
-#[attr_cfg(windows)]
+#[meta_cfg(windows)]
 /// This struct is for Windows only
 pub struct WindowsOnly2 {
     a : u64
 }
 
-#[attr_cfg(!linux)]
+#[meta_cfg(!linux)]
 /// This function is NOT for linux
 pub fn NotLinux() {
 }

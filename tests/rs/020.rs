@@ -8,7 +8,7 @@ target_cfg!{
             String::from("Test")
         }
     },
-    _ => {
+    !x86_64:ar => {
         pub fn foo1() -> String {
             String::from("Test")
         }

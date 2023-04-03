@@ -1,5 +1,5 @@
 // Test 002 : Correcting previous test. Now works.
-use cfg_boost::{ attr_cfg, target_cfg, match_cfg};
+use cfg_boost::{ meta_cfg, target_cfg, match_cfg};
 
 target_cfg!{
 	linux | windows => {
@@ -7,7 +7,6 @@ target_cfg!{
 			String::from("This is ")
 		}
 	},
-    _ => {},
 }
 
 
@@ -20,7 +19,7 @@ fn foo2() -> String {
     }
 }
 
-#[attr_cfg(linux | windows)]
+#[meta_cfg(linux | windows)]
 fn foo3() -> String {
     String::from("from cfg_boost!")
 }

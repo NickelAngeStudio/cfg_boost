@@ -1,7 +1,7 @@
 //! Hello
 
-use ts::{ generate_target_content, generate_attr_content, CfgBoostMacroSource};
-use proc_macro::{TokenStream, TokenTree, Group, Delimiter};
+use ts::{ generate_target_content, generate_meta_content, generate_match_content};
+use proc_macro::{TokenStream};
 
 /// Errors enumeration
 mod errors;
@@ -23,15 +23,7 @@ mod syntax;
 pub fn target_cfg(item: TokenStream) -> TokenStream {
 
     // Generate content from target_cfg! macro source.
-    generate_target_content(item, CfgBoostMacroSource::TargetMacro)
-
-}
-
-#[proc_macro]
-pub fn single_cfg(item: TokenStream) -> TokenStream {
-
-    // Generate content from single_cfg! macro source.
-    generate_target_content(item, CfgBoostMacroSource::SingleMacro)
+    generate_target_content(item)
 
 }
 
@@ -39,17 +31,17 @@ pub fn single_cfg(item: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn match_cfg(item: TokenStream) -> TokenStream {
 
-    // Generate content from match_cfg! macro source and add braces around content.
-    TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace,generate_target_content(item, CfgBoostMacroSource::MatchMacro))))
+    // Generate content for match_cfg! macro.
+    generate_match_content(item)
 
 }
 
 
 
 #[proc_macro_attribute]
-pub fn attr_cfg(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn meta_cfg(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     // Generate attribute content.
-    generate_attr_content(attr, item)
+    generate_meta_content(attr, item)
 
 }

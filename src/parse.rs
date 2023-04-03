@@ -135,69 +135,30 @@ mod parse_alias_from_label_tests {
         }
     }
 
-    /// Test LINUX_ALIAS
-    #[test]
-    fn linux_alias() {
-        test_parse_alias_from_label(super::LINUX_ALIAS);
+    /// Create vector with all predefined aliases
+    fn create_alias_vector() -> Vec<(&'static str, &'static str)>{
+        vec![super::LINUX_ALIAS,
+            super::UNIX_ALIAS,
+            super::WINDOWS_ALIAS,
+            super::MACOS_ALIAS,
+            super::ANDROID_ALIAS,
+            super::IOS_ALIAS,
+            super::WASM_ALIAS,
+            super::DOC_ALIAS,
+            super::TEST_ALIAS,
+            super::DESKTOP_ALIAS,
+            super::MOBILE_ALIAS]
     }
 
-    /// Test UNIX_ALIAS
+    /// Test all predefined aliases
     #[test]
-    fn unix_alias() {
-        test_parse_alias_from_label(super::UNIX_ALIAS);
-    }
+    fn predefined() {
+        let aliases = create_alias_vector();
 
-    /// Test WINDOWS_ALIAS
-    #[test]
-    fn windows_alias() {
-        test_parse_alias_from_label(super::WINDOWS_ALIAS);
-    }
-
-    /// Test MACOS_ALIAS
-    #[test]
-    fn macos_alias() {
-        test_parse_alias_from_label(super::MACOS_ALIAS);
-    }
-
-    /// Test ANDROID_ALIAS
-    #[test]
-    fn android_alias() {
-        test_parse_alias_from_label(super::ANDROID_ALIAS);
-    }
-
-    /// Test IOS_ALIAS
-    #[test]
-    fn ios_alias() {
-        test_parse_alias_from_label(super::IOS_ALIAS);
-    }
-    /// Test WASM_ALIAS
-    #[test]
-    fn wasm_alias() {
-        test_parse_alias_from_label(super::WASM_ALIAS);
-    }
-
-    /// Test DOC_ALIAS
-    #[test]
-    fn doc_alias() {
-        test_parse_alias_from_label(super::DOC_ALIAS);
-    }
-
-    /// Test DESKTOP_ALIAS
-    #[test]
-    fn desktop_alias() {
-        test_parse_alias_from_label(super::DESKTOP_ALIAS);
-    }
-
-    /// Test MOBILE_ALIAS
-    #[test]
-    fn mobile_alias() {
-        test_parse_alias_from_label(super::MOBILE_ALIAS);
-    }
-
-    /// Test TEST_ALIAS
-    #[test]
-    fn test_alias() {
-        test_parse_alias_from_label(super::TEST_ALIAS);
+        // Test each predefined alias
+        for alias in aliases {
+            test_parse_alias_from_label(alias);
+        }
     }
 
     /// Test custom aliases
@@ -222,7 +183,7 @@ mod parse_alias_from_label_tests {
 
         // 3. Test each custom alias
         for alias in aliases {
-            test_parse_alias_from_label((alias.0, alias.1));
+            test_parse_alias_from_label(alias);
         }
     }
 
@@ -240,18 +201,7 @@ mod parse_alias_from_label_tests {
     #[ignore]
     fn stress_performance() {
         // Compile aliases in 1 list
-        let aliases : Vec<(&str, &str)> = vec![
-            super::LINUX_ALIAS,
-            super::UNIX_ALIAS,
-            super::WINDOWS_ALIAS,
-            super::MACOS_ALIAS,
-            super::ANDROID_ALIAS,
-            super::IOS_ALIAS,
-            super::WASM_ALIAS,
-            super::DOC_ALIAS,
-            super::TEST_ALIAS,
-            super::DESKTOP_ALIAS,
-            super::MOBILE_ALIAS];
+        let aliases = create_alias_vector();
 
         // Get time started
         let start = Instant::now();
@@ -313,77 +263,33 @@ mod parse_cfg_predicate_unit_tests {
             Err(err) => panic!("{}", err.message(pred.as_str())),
         }
     }
+
+    /// Create a vector of all predefined predicates
+    fn create_predicate_vector() -> Vec<(&'static str, &'static str)>{
+         vec![
+            super::TARGET_ARCH_PREDICATE,
+            super::TARGET_FEATURE_PREDICATE,
+            super::TARGET_OS_PREDICATE,
+            super::TARGET_FAMILY_PREDICATE,
+            super::TARGET_ENV_PREDICATE,
+            super::TARGET_ENDIAN_PREDICATE,
+            super::TARGET_PW_PREDICATE,
+            super::TARGET_VENDOR_PREDICATE,
+            super::TARGET_ATOMIC_PREDICATE,
+            super::PANIC_PREDICATE,
+            super::FEATURE_PREDICATE,
+            super::WILDCARD_PREDICATE]
+    }
     
-    /// Test parse_cfg_predicate TARGET_ARCH_PREDICATE
-    #[test]
-    fn target_arch_predicate() {
-        test_cfg_predicate(super::TARGET_ARCH_PREDICATE);
-    }
-
-    /// Test parse_cfg_predicate TARGET_FEATURE_PREDICATE
-    #[test]
-    fn target_feature() {
-        test_cfg_predicate(super::TARGET_FEATURE_PREDICATE);
-    }
-
-    /// Test parse_cfg_predicate TARGET_OS_PREDICATE
-    #[test]
-    fn target_os() {
-        test_cfg_predicate(super::TARGET_OS_PREDICATE);
-    }
-
-    /// Test parse_cfg_predicate TARGET_FAMILY_PREDICATE 
-    #[test]
-    fn target_family() {
-        test_cfg_predicate(super::TARGET_FAMILY_PREDICATE);
-    }
-
-    /// Test parse_cfg_predicate TARGET_ENV_PREDICATE
-    #[test]
-    fn target_env() {
-        test_cfg_predicate(super::TARGET_ENV_PREDICATE);
-    }
-
-    /// Test parse_cfg_predicate TARGET_ENDIAN_PREDICATE
-    #[test]
-    fn target_endian() {
-        test_cfg_predicate(super::TARGET_ENDIAN_PREDICATE);
-    }
-
-    /// Test parse_cfg_predicate TARGET_PW_PREDICATE
-    #[test]
-    fn target_pw() {
-        test_cfg_predicate(super::TARGET_PW_PREDICATE);
-    }
-
-    /// Test parse_cfg_predicate TARGET_VENDOR_PREDICATE
-    #[test]
-    fn target_vendor() {
-        test_cfg_predicate(super::TARGET_VENDOR_PREDICATE);
-    }
-
-    /// Test parse_cfg_predicate TARGET_ATOMIC_PREDICATE
-    #[test]
-    fn target_atomic() {
-        test_cfg_predicate(super::TARGET_ATOMIC_PREDICATE);
-    }
-
-    /// Test parse_cfg_predicate PANIC_PREDICATE
-    #[test]
-    fn panic() {
-        test_cfg_predicate(super::PANIC_PREDICATE);
-    }
-
-    /// Test parse_cfg_predicate FEATURE_PREDICATE
-    #[test]
-    fn features() {
-        test_cfg_predicate(super::FEATURE_PREDICATE);
-    }
-
     /// Test parse_cfg_predicate WILDCARD_PREDICATE
     #[test]
-    fn wildcard() {
-        test_cfg_predicate(super::WILDCARD_PREDICATE);
+    fn predefined() {
+        let predicates = create_predicate_vector();
+
+        // Test each predefined predicates
+        for pred in predicates {
+            test_cfg_predicate(pred);
+        }
     }
 
     /// Test parse_cfg_predicate custom predicate
@@ -411,7 +317,7 @@ mod parse_cfg_predicate_unit_tests {
 
         // 3. Test each custom predicates
         for pred in custom_pred {
-            test_cfg_predicate((pred.0, pred.1));
+            test_cfg_predicate(pred);
         }
 
     }
@@ -432,19 +338,7 @@ mod parse_cfg_predicate_unit_tests {
     #[ignore]
     fn stress_performance() {
         // Compile aliases in 1 list
-        let predicates : Vec<(&str, &str)> = vec![
-            super::TARGET_ARCH_PREDICATE,
-            super::TARGET_FEATURE_PREDICATE,
-            super::TARGET_OS_PREDICATE,
-            super::TARGET_FAMILY_PREDICATE,
-            super::TARGET_ENV_PREDICATE,
-            super::TARGET_ENDIAN_PREDICATE,
-            super::TARGET_PW_PREDICATE,
-            super::TARGET_VENDOR_PREDICATE,
-            super::TARGET_ATOMIC_PREDICATE,
-            super::PANIC_PREDICATE,
-            super::FEATURE_PREDICATE,
-            super::WILDCARD_PREDICATE];
+        let predicates = create_predicate_vector();
 
         // Get time started
         let start = Instant::now();

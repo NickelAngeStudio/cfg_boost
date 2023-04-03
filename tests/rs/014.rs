@@ -8,11 +8,6 @@ target_cfg!{
             String::from("Test")
         }
     },
-    _ => {
-        pub fn foo1() -> String {
-            String::from("Test")
-        }
-    },
     
 }
 
