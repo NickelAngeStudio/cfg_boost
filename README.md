@@ -1,27 +1,33 @@
 
 # cfg_boost
 
-Revamped syntax and macros to easily manage all #[cfg] parameters in one package. See [Features Wiki](https://github.com/NickelAngeStudio/cfg_boost/wiki/Features) to get the full list of features like aliases, attributes, automatic requirement tags documentation and more.
+Revamped syntax and macros to easily manage all #[cfg] parameters in one package. See [features](https://github.com/NickelAngeStudio/cfg_boost/wiki/Features) to get the full list of features like aliases, attributes, automatic requirement tags documentation and more.
 
 ## Example
 **Transform this :**
 ```
-#[cfg(any(doc, any(target_os = "linux", target_os = "mac_os", target_os = "windows")))]
+#[cfg(any(doc, any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+#[cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
 pub mod desktop_mod;
 
-#[cfg(any(doc, any(target_os = "linux", target_os = "mac_os", target_os = "windows")))]
+#[cfg(any(doc, any(target_os = "linux", target_os = "macos", target_os = "windows")))]
+#[cfg_attr(docsrs, doc(cfg(any(target_os = "linux", target_os = "windows", target_os = "macos"))))]
 pub use desktop_mod::Struct as Struct;
 
 #[cfg(any(doc, any(target_os = "ios", target_os = "android")))]
+#[cfg_attr(docsrs, doc(cfg(any(target_os = "ios", target_os = "android"))))]
 pub mod mobile_mod;
 
 #[cfg(any(doc, any(target_os = "ios", target_os = "android")))]
+#[cfg_attr(docsrs, doc(cfg(any(target_os = "ios", target_os = "android"))))]
 pub use mobile_mod::Struct1 as Struct1;
 
 #[cfg(any(doc, any(target_os = "ios", target_os = "android")))]
+#[cfg_attr(docsrs, doc(cfg(any(target_os = "ios", target_os = "android"))))]
 pub use mobile_mod::Struct2 as Struct2;
 
 #[cfg(any(doc, any(target_os = "ios", target_os = "android")))]
+#[cfg_attr(docsrs, doc(cfg(any(target_os = "ios", target_os = "android"))))]
 pub fn mobile_only_fn() {}
 ```
 
@@ -41,7 +47,7 @@ target_cfg!{
 }
 ```
 
-See [Examples wiki](https://github.com/NickelAngeStudio/cfg_boost/wiki/Examples) for more use cases.
+See [examples](https://github.com/NickelAngeStudio/cfg_boost/wiki/Examples) for more use cases.
 
 
 ## Installation

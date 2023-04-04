@@ -27,7 +27,6 @@ pub(crate) enum TargetArmType {
 /// Struct used that contains an arm type, it's attributes and content.
 #[derive(Clone)]
 pub(crate) struct TargetArm {
-    //pub is_doc : Option<bool>,     // Flag that tell if doc or !doc has been set. If None, attributes will be wrapped by doc | (attr) by default.
     pub arm_type : TargetArmType,
     pub attr : TokenStream,
     pub content : TokenStream,
