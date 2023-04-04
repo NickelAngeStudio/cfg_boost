@@ -4,39 +4,39 @@
 Revamped syntax and macros to easily manage all #[cfg] parameters in one package. See [Features Wiki](https://github.com/NickelAngeStudio/cfg_boost/wiki/Features) to get the full list of features like aliases, attributes, automatic requirement tags documentation and more.
 
 ## Example
-**Make this :**
+**Transform this :**
 ```
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-pub mod macos_mod;
+#[cfg(any(doc, any(target_os = "linux", target_os = "mac_os", target_os = "windows")))]
+pub mod desktop_mod;
 
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-pub use macos_mod::Struct as Struct;
+#[cfg(any(doc, any(target_os = "linux", target_os = "mac_os", target_os = "windows")))]
+pub use desktop_mod::Struct as Struct;
 
-#[cfg(target_os = "windows")]
-pub mod windows_mod;
+#[cfg(any(doc, any(target_os = "ios", target_os = "android")))]
+pub mod mobile_mod;
 
-#[cfg(target_os = "windows")]
-pub use windows_mod::Struct1 as Struct1;
+#[cfg(any(doc, any(target_os = "ios", target_os = "android")))]
+pub use mobile_mod::Struct1 as Struct1;
 
-#[cfg(target_os = "windows")]
-pub use windows_mod::Struct2 as Struct2;
+#[cfg(any(doc, any(target_os = "ios", target_os = "android")))]
+pub use mobile_mod::Struct2 as Struct2;
 
-#[cfg(target_os = "windows")]
-pub fn windows_only_fn() {}
+#[cfg(any(doc, any(target_os = "ios", target_os = "android")))]
+pub fn mobile_only_fn() {}
 ```
 
-**Look like this :**
+**Into this :**
 ```
 target_cfg!{
-    macos | ios => {
-        pub mod macos_mod;
-        pub use macos_mod::Struct as Struct;
+    desktop => {
+        pub mod desktop_mod;
+        pub use desktop_mod::Struct as Struct;
     },
-    windows => {
-        pub mod windows_mod;
-        pub use windows_mod::Struct1 as Struct1;
-        pub use windows_mod::Struct2 as Struct2;
-        pub fn windows_only_fn() {}
+    mobile => {
+        pub mod mobile_mod;
+        pub use mobile_mod::Struct1 as Struct1;
+        pub use mobile_mod::Struct2 as Struct2;
+        pub fn mobile_only_fn() {}
     }
 }
 ```
