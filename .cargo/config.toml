@@ -1,27 +1,27 @@
 [env]
 ################################
-# Default `target_cfg` aliases #
+# Default `cfg_boost` aliases #
 ################################
-# target_cfg-linux = { value = "linux:os", force = false }
-# target_cfg-windows = { value = "windows:os", force = false }
-# target_cfg-macos = { value = "macos:os", force = false }
-# target_cfg-android = { value = "android:os", force = false }
-# target_cfg-ios = { value = "ios:os", force = false }
-# target_cfg-wasm = { value = "wasm:fm", force = false }
-# target_cfg-desktop = { value = "linux:os | windows:os | macos:os", force = false }
-# target_cfg-mobile = { value = "android:os | ios:os", force = false }
+# cfg_boost-linux = { value = "linux:os", force = false }
+# cfg_boost-windows = { value = "windows:os", force = false }
+# cfg_boost-macos = { value = "macos:os", force = false }
+# cfg_boost-android = { value = "android:os", force = false }
+# cfg_boost-ios = { value = "ios:os", force = false }
+# cfg_boost-wasm = { value = "wasm:fm", force = false }
+# cfg_boost-desktop = { value = "linux:os | windows:os | macos:os", force = false }
+# cfg_boost-mobile = { value = "android:os | ios:os", force = false }
 
 #################################################
-# Default `target_cfg` configuration predicates #
+# Default `cfg_boost` configuration predicates #
 #################################################
-# target_cfg_predicate-ar = { value = "target_arch = \"{}\"", force = true } 
-# target_cfg_predicate-tf = { value = "target_feature = "{}"", force = true }
-# target_cfg_predicate-os = { value = "target_os = \"{}\"", force = true } 
-# target_cfg_predicate-fm = { value = "target_family = \"{}\"", force = true } 
-# target_cfg_predicate-ev = { value = "target_env = \"{}\"", force = true } 
-# target_cfg_predicate-ed = { value = "target_endian = \"{}\"", force = true } 
-# target_cfg_predicate-pw = { value = "target_pointer_width = \"{}\"", force = true } 
-# target_cfg_predicate-vn = { value = "target_vendor = \"{}\"", force = true } 
-# target_cfg_predicate-at = { value = "target_has_atomic = \"{}\"", force = true } 
-# target_cfg_predicate-pn = { value = "panic = \"{}\"", force = true }
-# target_cfg_predicate-ft = { value = "feature = \"{}\"", force = true }
+# cfg_boost_predicate-ar = { value = "target_arch = \"{}\"", force = true } 
+# cfg_boost_predicate-tf = { value = "target_feature = "{}"", force = true }
+# cfg_boost_predicate-os = { value = "target_os = \"{}\"", force = true } 
+# cfg_boost_predicate-fm = { value = "target_family = \"{}\"", force = true } 
+# cfg_boost_predicate-ev = { value = "target_env = \"{}\"", force = true } 
+# cfg_boost_predicate-ed = { value = "target_endian = \"{}\"", force = true } 
+# cfg_boost_predicate-pw = { value = "target_pointer_width = \"{}\"", force = true } 
+# cfg_boost_predicate-vn = { value = "target_vendor = \"{}\"", force = true } 
+# cfg_boost_predicate-at = { value = "target_has_atomic = \"{}\"", force = true } 
+# cfg_boost_predicate-pn = { value = "panic = \"{}\"", force = true }
+# cfg_boost_predicate-ft = { value = "feature = \"{}\"", force = true }

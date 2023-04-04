@@ -3,9 +3,10 @@ use std::env;
 use crate::errors::CfgBoostError;
 
 // Contants
-pub(crate) const ENV_KEY_PREDICATE : &str = "target_cfg_predicate-";            // Key used to fetch custom predicate
-pub(crate) const ENV_KEY_ALIAS : &str = "target_cfg-";                          // Key used to fetch custom aliases
-pub(crate) const PREDICATE_PLACEHOLDER : &str = "{}";                           // Predicate placeholder
+pub(crate) const ENV_KEY_PREDICATE : &str = "cfg_boost_predicate-";            // Key used to fetch custom predicate
+pub(crate) const ENV_KEY_ALIAS : &str = "cfg_boost-";                          // Key used to fetch custom aliases
+pub(crate) const PREDICATE_PLACEHOLDER : &str = "{}";                          // Predicate placeholder
+const AUTO_DOC_KEY : &str = "cfg_boost_autodoc";                               // Key for cfg_boost autodocumentation parameter.
 
 // Aliases
 pub(crate) const LINUX_ALIAS : (&str, &str) = ("linux", "linux:os");            // Linux alias and value
@@ -34,12 +35,27 @@ pub(crate) const PANIC_PREDICATE :  (&str, &str) = ("pn", "panic = \"{}\"");    
 pub(crate) const FEATURE_PREDICATE :  (&str, &str) = ("ft", "feature = \"{}\"");                // Feature predicate
 pub(crate) const WILDCARD_PREDICATE :  (&str, &str) = ("_", PREDICATE_PLACEHOLDER);             // Wildcard predicate
 
+/// Get if autodocumentation is true or false.
+/// 
+/// If not set, default is true.
+#[inline(always)]
+pub(crate) fn is_cfg_boost_autodoc() -> bool {
+    match std::env::var(AUTO_DOC_KEY) {
+        Ok(value) => match value.as_str() {
+            "true" => true,
+            "false" => false,
+            _ => true,  // Any other value is considered true.
+        },
+        Err(_) => true,     // If not set, return true as default
+    }
+}
+
 /// Parse tokens to generate configuration predicate.
 /// 
 /// Error(s)
 /// Returns Err([SyntaxParseError::InvalidConfigurationPredicate]) if predicate not defined.
 #[inline(always)]
-pub fn parse_cfg_predicate(tokens : &str) -> Result<String, CfgBoostError> {
+pub fn get_cfg_boost_predicate(tokens : &str) -> Result<String, CfgBoostError> {
 
     // 1. Extract label and predicate from tokens
     match tokens.find(":") {
@@ -83,7 +99,7 @@ pub fn parse_cfg_predicate(tokens : &str) -> Result<String, CfgBoostError> {
 /// Error(s)
 /// Returns Err([TargetCfgError::AliasNotFound]) if alias not defined.
 #[inline(always)]
-pub fn parse_alias_from_label(label : &str) -> Result<String, CfgBoostError> {
+pub fn get_cfg_boost_alias(label : &str) -> Result<String, CfgBoostError> {
 
     // 1. Try to match environment variable to see if it was defined in config.toml.
     match env::var(format!("{}{}", ENV_KEY_ALIAS, label)) {
@@ -124,7 +140,7 @@ mod parse_alias_from_label_tests {
 
     /// Test a pair of alias, alias value.
     fn test_parse_alias_from_label(alias : (&str, &str)) {
-        match super::parse_alias_from_label(alias.0) {
+        match super::get_cfg_boost_alias(alias.0) {
             Ok(result) => {
                 // If result != value, panic!
                 if result.ne(alias.1) {
@@ -211,7 +227,7 @@ mod parse_alias_from_label_tests {
             let alias = aliases[i & (aliases.len() - 1)];
 
             // Test each alias picked
-            match super::parse_alias_from_label(alias.0) {
+            match super::get_cfg_boost_alias(alias.0) {
                 Ok(result) => {
                     // If result != value, panic!
                     if result.ne(alias.1) {
@@ -238,7 +254,7 @@ mod parse_alias_from_label_tests {
 mod parse_cfg_predicate_unit_tests {
     use std::time::Instant;
 
-    use super::{parse_cfg_predicate};
+    use super::{get_cfg_boost_predicate};
 
     /// Test parse_cfg_predicate from a pair of (PREDICATE, PREDICATE_VALUE)
     fn test_cfg_predicate(predicate_tested : (&str,&str)){
@@ -253,7 +269,7 @@ mod parse_cfg_predicate_unit_tests {
         let control = String::from(predicate_tested.1.replace(super::PREDICATE_PLACEHOLDER, ARGUMENT_VALUE));
 
         // 4. match result of parse_cfg_predicate function.
-        match parse_cfg_predicate(pred.as_str()){
+        match get_cfg_boost_predicate(pred.as_str()){
             // 4.1. Panic! if result ne control
             Ok(result) => if result.ne(&control){
                 panic!("parse_cfg_predicate::{} test error. Expected {}, got {}!", "target_arch_predicate", control, result);
@@ -354,7 +370,7 @@ mod parse_cfg_predicate_unit_tests {
             let control = String::from(predicate.1.replace(super::PREDICATE_PLACEHOLDER, "stress_performance"));
 
             // 4. match result of parse_cfg_predicate function.
-            match parse_cfg_predicate(label.as_str()){
+            match get_cfg_boost_predicate(label.as_str()){
                 // 4.1. Panic! if result ne control
                 Ok(result) => if result.ne(&control){
                     panic!("parse_cfg_predicate::{} test error. Expected {}, got {}!", "target_arch_predicate", control, result);

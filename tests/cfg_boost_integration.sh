@@ -57,6 +57,30 @@ run_test() {
 
 }
 
+# Read documentation and verify if it contains $2. $1 is used to label test.
+doc_test_has() {
+	TOTAL_TESTS=$((TOTAL_TESTS+1))
+	source=`cat target/doc/$PRJ_TEST_NAME/index.html`
+	if [[ "$source" == *"$2"* ]]; then
+		TOTAL_PASSED=$((TOTAL_PASSED+1))
+		echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;32mPASS\033[0m]"
+	else
+		echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;31mFAIL\033[0m]"
+	fi
+}
+
+# Read documentation and verify that it doesn't contains $2. $1 is used to label test.
+doc_test_hasnt() {
+	TOTAL_TESTS=$((TOTAL_TESTS+1))
+	source=`cat target/doc/$PRJ_TEST_NAME/index.html`
+	if [[ "$source" == *"stab portability"* ]]; then
+		echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;31mFAIL\033[0m]"
+	else
+		TOTAL_PASSED=$((TOTAL_PASSED+1))
+		echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;32mPASS\033[0m]"
+	fi
+}
+
 ########
 # TEST #
 ########
@@ -130,17 +154,10 @@ run_test 026.rs "Test 026 completed!"
 
 # T27 Generate documentation without [package.metadata.docs.rs] and read generated file to make sure labels are NOT included.
 run_test 027.rs "Test 027 completed!"
-cargo doc
+result="$(cargo doc 2>&1)"
 
 # HTML must NOT have label with class tab portability
-TOTAL_TESTS=$((TOTAL_TESTS+1))
-source=`cat target/doc/$PRJ_TEST_NAME/index.html`
-if [[ "$source" == *"stab portability"* ]]; then
-	echo -e "\033[1;34mTEST DOC.rs\033[0m        [\033[1;31mFAIL\033[0m]"
-else
-	TOTAL_PASSED=$((TOTAL_PASSED+1))
-	echo -e "\033[1;34mTEST DOC.rs\033[0m        [\033[1;32mPASS\033[0m]"
-fi
+doc_test_hasnt "DOC001" "stab portability"
 
 # Add documentation metadata to test project 
 echo "[package.metadata.docs.rs]" >> Cargo.toml
@@ -150,17 +167,11 @@ echo "rustdoc-args = [\"--cfg\", \"docsrs\"]" >> Cargo.toml
 
 # T28 Generate documentation with [package.metadata.docs.rs] and read generated file to make sure labels are included.
 run_test 028.rs "Test 028 completed!"
-RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features
+result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
+
 
 # HTML must have label with class tab portability
-TOTAL_TESTS=$((TOTAL_TESTS+1))
-source=`cat target/doc/$PRJ_TEST_NAME/index.html`
-if [[ "$source" == *"stab portability"* ]]; then
-	TOTAL_PASSED=$((TOTAL_PASSED+1))
-	echo -e "\033[1;34mTEST DOC.rs\033[0m        [\033[1;32mPASS\033[0m]"
-else
-	echo -e "\033[1;34mTEST DOC.rs\033[0m        [\033[1;31mFAIL\033[0m]"
-fi
+doc_test_has "DOC002" "stab portability"
 
 
 # T29~T30 CfgBoostError::WildcardArmOnTarget error.
@@ -169,21 +180,33 @@ run_test 030.rs "Test 030 completed!"
 
 # T31 Generate documentation with [package.metadata.docs.rs] while deactivating documentation. Read generated file to make sure labels are NOT included.
 run_test 031.rs "Test 031 completed!"
-RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features
+result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
 
 # HTML must NOT have label with class tab portability
-TOTAL_TESTS=$((TOTAL_TESTS+1))
-source=`cat target/doc/$PRJ_TEST_NAME/index.html`
-if [[ "$source" == *"stab portability"* ]]; then
-	echo -e "\033[1;34mTEST DOC.rs\033[0m        [\033[1;31mFAIL\033[0m]"
-else
-	TOTAL_PASSED=$((TOTAL_PASSED+1))
-	echo -e "\033[1;34mTEST DOC.rs\033[0m        [\033[1;32mPASS\033[0m]"
-fi
+doc_test_hasnt "DOC003" "stab portability"
 
 # T32~T33 CfgBoostError::TargetInFunction error.
 run_test 032.rs "target_cfg! macro cannot be used inside a function. Use match_cfg! instead."
 run_test 033.rs "Test 033 completed!"
+
+# T34-T35 Auto documentation config
+cp -r "../tests/rs/034.rs" "src/main.rs"  
+result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
+
+doc_test_has "DOC004" "stab portability"
+
+# Copy autodoc ovveride config.toml
+cp -r "../tests/rs/autodoc.toml" ".cargo/config.toml"  
+
+# Clean cargo
+result="$(cargo clean 2>&1)"
+
+# Rerun doc
+result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
+
+# Previously documented elements should now be gone.
+doc_test_hasnt "DOC005" "stab portability"
+
 
 
 #########

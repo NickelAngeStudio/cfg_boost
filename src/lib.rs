@@ -6,14 +6,14 @@ use proc_macro::{TokenStream};
 /// Errors enumeration
 mod errors;
 
+/// config.toml fetch functions
+mod config;
+
 /// Arms structure and functions
 mod arm;
 
 /// Tokenstream generator functions
 mod ts;
-
-/// Alias and predicate parsing
-mod parse;
 
 /// Syntax tree
 mod syntax;
