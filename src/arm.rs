@@ -1,6 +1,6 @@
-use proc_macro::{TokenStream, TokenTree, Group, Delimiter, Punct, Ident};
+use proc_macro::{TokenStream, TokenTree, Group, Punct, Ident};
 
-use crate::{errors::CfgBoostError, ts::CfgBoostMacroSource, parse::DOC_ALIAS, syntax::NEGATIVE_SYMBOL};
+use crate::{errors::CfgBoostError, ts::CfgBoostMacroSource, syntax::NEGATIVE_SYMBOL};
 
 /// Target arm separator
 pub(crate) const ARM_SEPARATOR : char = ',';
@@ -27,7 +27,7 @@ pub(crate) enum TargetArmType {
 /// Struct used that contains an arm type, it's attributes and content.
 #[derive(Clone)]
 pub(crate) struct TargetArm {
-    pub is_doc : Option<bool>,     // Flag that tell if doc or !doc has been set. If None, attributes will be wrapped by doc | (attr) by default.
+    //pub is_doc : Option<bool>,     // Flag that tell if doc or !doc has been set. If None, attributes will be wrapped by doc | (attr) by default.
     pub arm_type : TargetArmType,
     pub attr : TokenStream,
     pub content : TokenStream,
@@ -36,14 +36,14 @@ pub(crate) struct TargetArm {
 impl ToString for TargetArm {
     /// Transform self into string.
     fn to_string(&self) -> String {
-        format!("is_doc : {:?}, arm_type : {:?}, attr : {}, content : {}", self.is_doc, self.arm_type, self.attr.to_string(), self.content.to_string())
+        format!("arm_type : {:?}, attr : {}, content : {}", self.arm_type, self.attr.to_string(), self.content.to_string())
     }
 }
 
 impl TargetArm {
     /// Create a new empty normal arm.
     pub fn new() -> TargetArm {
-        TargetArm { arm_type : TargetArmType::Normal, is_doc : None, attr : TokenStream::new(), content : TokenStream::new() }
+        TargetArm { arm_type : TargetArmType::Normal, attr : TokenStream::new(), content : TokenStream::new() }
     }
 
     /// Extract target arms into a vector from macro source.
@@ -104,14 +104,9 @@ impl TargetArm {
                     panic!("{}", CfgBoostError::WildcardArmOnTarget.message(""));
                 }
 
-                // For each arm with is_doc == None, set_default_doc
+                // // If any arm is inside a function, panic!
                 for arm in arms {
-                    match arm.is_doc{
-                        Some(_) => {},  // Already set, do nothing
-                        None => arm.set_default_doc(macro_src), // Set default value according to macro source.
-                    }
-
-                    if Self::is_inside_function(arm) {  // If arm is inside a function, panic!
+                    if Self::is_inside_function(arm) {  
                         panic!("{}", CfgBoostError::TargetInFunction.message(""));
                     }
                 }
@@ -219,10 +214,6 @@ impl TargetArm {
                         Self::add_ts_to_arm(TokenStream::from(token), arm, &arms, *separator); // Add token to attr or content.
                     }
                 },  
-                val if DOC_ALIAS.0.eq(val) => {  // Branch has doc set.
-                    arm.is_doc = Some(!*is_negative);    // Set doc value
-                    Self::add_ts_to_arm(TokenStream::from(token), arm, &arms, *separator); // Add token to attr or content.
-                },
 
                 _ => Self::add_ts_to_arm(TokenStream::from(token), arm, &arms, *separator), // Add token to attr or content.
 
@@ -231,29 +222,6 @@ impl TargetArm {
             Self::add_ts_to_arm(TokenStream::from(token), arm, &arms, *separator);
         }
         *is_negative = false;    // Consume negative flag
-    }
-    
-    /// Set default doc attributes wrap doc | (attr) according to macro source.
-    #[inline(always)]
-    fn set_default_doc(&mut self, macro_src : CfgBoostMacroSource) {
-
-        match macro_src{           
-            CfgBoostMacroSource::MatchMacro => self.is_doc = None,  // Match macro never need is_doc set
-
-            _ => {
-                // 1. Wrap attr in ()
-                let grp_ts = TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis,self.attr.clone()))); 
-
-                // 2. Set attr to doc |
-                self.attr = format!("{} |", DOC_ALIAS.0).parse::<TokenStream>().unwrap();
-
-                // 3. Extend with grp_ts
-                self.attr.extend(grp_ts);
-
-                // 4. Set is_doc to Some(true)
-                self.is_doc = Some(true);
-            },
-        }
     }
 
     /// Add tokenstream to arm attr or content according to separator.

@@ -26,3 +26,9 @@ cfg_boost_predicate-c8 = { value = "custom8 = \"{}\"", force = true }
 cfg_boost_predicate-c9 = { value = "custom9 = \"{}\"", force = true } 
 cfg_boost_predicate-really_long_predicate_and_i_mean_really_longgggggggggg = { value = "really_long_predicate_and_i_mean_really_longgggggggggg = \"{}\"", force = true }
 cfg_boost_predicate-x = { value = "x = \"{}\"", force = true }
+
+
+######################
+# Deactivate autodoc #
+######################
+cfg_boost_autodoc = { value = "false" }

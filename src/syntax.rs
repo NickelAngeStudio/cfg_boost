@@ -3,7 +3,7 @@
 use std::{rc::Rc};
 use proc_macro::{TokenStream, TokenTree};
 
-use crate::{errors::CfgBoostError, parse::{parse_alias_from_label, parse_cfg_predicate}};
+use crate::{errors::CfgBoostError, config::{get_cfg_boost_alias, get_cfg_boost_predicate}};
 
 /// SyntaxTreeNode in a RC 
 pub(crate) type Node = Rc<SyntaxTreeNode>;
@@ -48,7 +48,7 @@ impl ToString for SyntaxTreeNode {
             SyntaxTreeNode::ANY(left_node, right_node) => format!("any({},{})", left_node.to_string(), right_node.to_string()),
             SyntaxTreeNode::ALL(left_node, right_node) => format!("all({},{})", left_node.to_string(), right_node.to_string()),
             SyntaxTreeNode::LEAF(label) => 
-                match parse_cfg_predicate(&label.as_str()) {
+                match get_cfg_boost_predicate(&label.as_str()) {
                     Ok(predicate) => format!("{}", predicate),
                     Err(err) => panic!("{}", err.message(label)),
                 },
@@ -132,7 +132,7 @@ impl SyntaxTreeNode {
                                         Some(_) => panic!("{}", CfgBoostError::MissingOperator.message(&content.to_string())),
                                         None => {},
                                     }
-                                    match parse_alias_from_label(&content.to_string()) {
+                                    match get_cfg_boost_alias(&content.to_string()) {
                                         Ok(alias) => Self::generate(alias.parse().unwrap()),
                                         Err(err) => panic!("{}", err.message(&stream.to_string())),
                                     }

@@ -2,7 +2,7 @@ use std::{env, path::Path, fs};
 
 use proc_macro::{TokenStream, Group, Delimiter, TokenTree};
 
-use crate::{syntax::{Node, SyntaxTreeNode}, arm::TargetArm, errors::CfgBoostError, parse::DOC_ALIAS};
+use crate::{syntax::{SyntaxTreeNode}, arm::TargetArm, errors::CfgBoostError, config::{DOC_ALIAS, is_cfg_boost_autodoc}};
 
 // Constants
 pub const DOC_HIDDEN_TAG : &str = "#[doc(hidden)]";                 // Tag used to detect if code is hidden. (Don't generate cfg_attr)
@@ -49,29 +49,37 @@ pub(crate) fn generate_target_content(stream: TokenStream) -> TokenStream {
     // 2. For each arm
     for arm in arms {
 
-        // 2.1. Generate syntax tree from attributes according to branch type.
-        let syntax_tree = generate_syntax_tree(&arm);
+        // 2.1. Generate cfg_attr tokenstream
+        let attr_ts = if get_if_docrs_from_cache() {
+            let syntax_tree = SyntaxTreeNode::generate(arm.attr.clone());
+            format_doc!(syntax_tree).parse::<TokenStream>().unwrap()
+        } else {
+            TokenStream::new()
+        };
 
-        // 2.2. Create cfg header from syntax tree
+        // 2.2. Get modified attributes of arm with doc (or not)
+        let attr = set_attr_autodoc(arm.attr.clone());
+
+        // 2.3. Generate syntax tree from attributes according to branch type.
+        let syntax_tree = SyntaxTreeNode::generate(attr.clone());
+
+        // 2.4. Create cfg header from syntax tree
         let cfg_ts = format_cfg!(syntax_tree.clone()).parse::<TokenStream>().unwrap();
 
-        // 2.3. Split item into vector of items
+        // 2.5. Split item into vector of items
         let items = split_items(arm.content.clone());
 
-        // 2.4. For each item in vector of items
+        // 2.6. For each item in vector of items
         for item in items {
-            // 2.4.2.1. Add cfg header.
+            // 2.6.2.1. Add cfg header.
             content.extend(cfg_ts.clone()); 
 
-            // 2.4.2.2. Add cfg_attr if not hidden and arm.is_doc is Some(true)
-            match arm.is_doc{
-                Some(is_doc) => if is_doc && !is_item_hidden(item.clone()) && get_if_docrs_from_cache() {  
-                    content.extend(format_doc!(syntax_tree).parse::<TokenStream>().unwrap());
-                },
-                None => {}, // None are not generated
+            // 2.6.2.2. Add cfg_attr if not hidden
+            if !attr_ts.is_empty() && !is_item_hidden(item.clone()) {  
+                content.extend(attr_ts.clone());
             }
             
-            // 2.4.2.3. Add item to content
+            // 2.6.2.3. Add item to content
             content.extend(item);
         }
     }
@@ -99,7 +107,16 @@ pub(crate) fn generate_match_content(stream: TokenStream) -> TokenStream {
     for arm in arms {
 
         // 2.1. Generate syntax tree from attributes according to branch type.
-        let syntax_tree = generate_syntax_tree(&arm);
+        let syntax_tree = match arm.arm_type {
+            crate::arm::TargetArmType::Normal => {
+                if arm.attr.is_empty() {    // Panic if attributes are empty on normal branch
+                    panic!("{}", CfgBoostError::EmptyArm.message(&arm.content.to_string()));
+                }
+                SyntaxTreeNode::generate(arm.attr.clone())
+            },
+            // If wildcard reached, 
+            crate::arm::TargetArmType::Wildcard => SyntaxTreeNode::wildcard_node(),
+        };
 
         // 2.2. Update cumulative tree with syntax tree.
         match cumul_tree.as_ref() {
@@ -123,20 +140,6 @@ pub(crate) fn generate_match_content(stream: TokenStream) -> TokenStream {
 
 }
 
-/// Generate a syntax tree from arm.
-#[inline(always)]
-pub(crate) fn generate_syntax_tree(arm : &TargetArm) -> Node {
-    match arm.arm_type {
-        crate::arm::TargetArmType::Normal => {
-            if arm.attr.is_empty() {    // Panic if attributes are empty on normal branch
-                panic!("{}", CfgBoostError::EmptyArm.message(&arm.content.to_string()));
-            }
-            SyntaxTreeNode::generate(arm.attr.clone())
-        },
-        // If wildcard reached, 
-        crate::arm::TargetArmType::Wildcard => SyntaxTreeNode::wildcard_node(),
-    }
-}
 
 /// Split tokenstream in different [item](https://doc.rust-lang.org/reference/items.html) vector tokenstream.
 /// 
@@ -220,24 +223,32 @@ pub(crate) fn generate_meta_content(attr : TokenStream, item : TokenStream) -> T
 
     let mut content = TokenStream::new();
 
-    // 1. Verify and set default doc attribute
-    let attr = set_attr_doc(attr);
+    // 1. Generate cfg_attr tokenstream
+    let attr_ts = if get_if_docrs_from_cache() {
+        let syntax_tree = SyntaxTreeNode::generate(attr.clone());
+        format_doc!(syntax_tree).parse::<TokenStream>().unwrap()
+    } else {
+        TokenStream::new()
+    };
 
-    // 2. Generate syntax tree from attributes
+    // 2. Verify and set default doc attribute (if is_cfg_boost_autodoc)
+    let attr = set_attr_autodoc(attr);
+    
+    // 3. Generate syntax tree from attributes
     let syntax_tree = SyntaxTreeNode::generate(attr.clone());
 
-    // 3. Add #[cfg] to content
+    // 4. Add #[cfg] to content
     content.extend(format_cfg!(syntax_tree).parse::<TokenStream>().unwrap());
 
-    // 4. Is Cargo.toml set up for target labels and #[doc(hidden)] not set?
-    if !is_item_hidden(item.clone()) && get_if_docrs_from_cache() {  
-        content.extend(format_doc!(syntax_tree).parse::<TokenStream>().unwrap());
+    // 5. Is Cargo.toml set up for target labels and #[doc(hidden)] not set?
+    if !attr.is_empty() && get_if_docrs_from_cache() {  
+        content.extend(attr_ts);
     }
 
-    // 5. Add item to content.
+    // 6. Add item to content.
     content.extend(item);
 
-    // 6. Write content to stream
+    // 7. Write content to stream
     content        
 
 }
@@ -245,35 +256,41 @@ pub(crate) fn generate_meta_content(attr : TokenStream, item : TokenStream) -> T
 /// Add default doc attribute to attributes if not present.
 /// Return ts created.
 #[inline(always)]
-fn set_attr_doc(attr : TokenStream) -> TokenStream{
+fn set_attr_autodoc(attr : TokenStream) -> TokenStream{
 
-    let mut is_set = false;
+    // Only if env setting is true
+    if is_cfg_boost_autodoc() {
 
-    // Verify if doc is set
-    for token in attr.clone() {
-        match token {
-            TokenTree::Ident(ident) => {
-                if ident.to_string().as_str().eq(DOC_ALIAS.0) {
-                    is_set = true;
-                }
-            },
-            _ => {},
+        let mut is_set = false;
+
+        // Verify if doc is set
+        for token in attr.clone() {
+            match token {
+                TokenTree::Ident(ident) => {
+                    if ident.to_string().as_str().eq(DOC_ALIAS.0) {
+                        is_set = true;
+                    }
+                },
+                _ => {},
+            }
         }
-    }
 
-    if is_set { // If already set, change nothing
-        attr
+        if is_set { // If already set, change nothing
+            attr
+        } else {
+            // 1. Wrap attr in ()
+            let grp_ts = TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis,attr))); 
+
+            // 2. Set attr to doc |
+            let mut attr = format!("{} |", DOC_ALIAS.0).parse::<TokenStream>().unwrap();
+
+            // 3. Extend with grp_ts
+            attr.extend(grp_ts);
+
+            // 4. Return new attributes
+            attr
+        }
     } else {
-        // 1. Wrap attr in ()
-        let grp_ts = TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis,attr))); 
-
-        // 2. Set attr to doc |
-        let mut attr = format!("{} |", DOC_ALIAS.0).parse::<TokenStream>().unwrap();
-
-        // 3. Extend with grp_ts
-        attr.extend(grp_ts);
-
-        // 4. Return new attributes
         attr
     }
 

@@ -1,9 +1,7 @@
 
 # cfg_boost
 
-Revamped syntax to easily manage all #[cfg] parameters. Provides pattern matching like [match](https://doc.rust-lang.org/rust-by-example/flow_control/match.html) thus the first matching arm is evaluated and all possibility are covered.
-
-See [Features Wiki](https://github.com/NickelAngeStudio/cfg_boost/wiki/Features) to get the full list of features like aliases, attributes, automatic requirement tags documentation and more.
+Revamped syntax and macros to easily manage all #[cfg] parameters in one package. See [Features Wiki](https://github.com/NickelAngeStudio/cfg_boost/wiki/Features) to get the full list of features like aliases, attributes, automatic requirement tags documentation and more.
 
 ## Example
 **Make this :**
@@ -39,8 +37,7 @@ target_cfg!{
         pub use windows_mod::Struct1 as Struct1;
         pub use windows_mod::Struct2 as Struct2;
         pub fn windows_only_fn() {}
-    },
-    _ => compile_error!{"Platform not supported"},
+    }
 }
 ```
 
@@ -54,7 +51,7 @@ cargo add cfg_boost
 ```
 
 ## Dependencies
-cfg_boost has no dependencies and only use stable features.
+cfg_boost has no dependencies and only use stable rust library.
 
 ## Question?
 See [cfg_boost wiki](https://github.com/NickelAngeStudio/cfg_boost/wiki), it contains a **LOT** of information.
