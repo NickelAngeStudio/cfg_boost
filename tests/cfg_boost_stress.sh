@@ -38,8 +38,8 @@ ALIASES=("linux" "unix" "windows" "macos" "android" "ios" "wasm" "doc" "test" "d
 # List of predefined and custom predicates
 PREDICATES=("ar" "tf" "os" "fm" "ev" "ed" "pw" "vn" "at" "pn" "ft" "_" "c1" "c2" "c3" "c4" "c5" "c6" "c7" "c8" "c9" "really_long_predicate_and_i_mean_really_longgggggggggg" "x")
 
-# Number of loop of stress. About 10 minutes.
-LOOP_COUNT=100
+# Number of loop of stress. About 100 minutes.
+LOOP_COUNT=1000
 
 # Limit of block generated per section
 BLOCK_LIMIT=10
