@@ -3,7 +3,7 @@ name = "cfg_boost"
 version = "1.0.0"
 edition = "2021"
 authors = ["NickelAnge.Studio <rust@nickelange.studio>"]
-description = "Revamped syntax and macros to easily manage all #[cfg] parameters in one package. See README / Homepage for more details."
+description = "Revamped syntax and macros to easily manage all #[cfg] parameters in one package. Compatible with stable toolchain and no dependencies. See README / Homepage for more details."
 keywords = ["cfg", "match", "target", "boost", "meta"]
 categories = ["configuration", "development-tools"]
 repository = "https://github.com/NickelAngeStudio/cfg_boost"
@@ -14,11 +14,13 @@ readme = "README.md"
 # List of excluded files
 exclude = [
     "target/*",
+    "img/*",
     "tests/*",
     ".git/*",
+    ".vscode/*",
+    ".cargo/*",
     ".github/*",
     ".gitignore",
-    "dep_tag.png",
 ]
 
 [lib]
