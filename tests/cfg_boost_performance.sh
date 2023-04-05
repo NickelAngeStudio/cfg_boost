@@ -68,7 +68,7 @@ execute_performance_test() {
 	
 	for (( c=1; c<=$LOOP_COUNT; c++ ))
 	do
-		echo -en "\rExecute $2 performance test... $c of $LOOP_COUNT"
+		# echo -en "\rExecute $2 performance test... $c of $LOOP_COUNT"
 		result="$(cargo clean 2>&1)"	# Clean project to get fresh compilation
 		start_time="$(date -u +%s%6N)"
 		result="$(cargo build --release 2>&1)"

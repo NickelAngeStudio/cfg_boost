@@ -246,7 +246,7 @@ echo -en "\033[0m"
 start_time="$(date -u +%s)"
 for (( c=1; c<=$LOOP_COUNT; c++ ))
 do
-	echo -en "\rExecuting stress test $c of $LOOP_COUNT..."
+	# echo -en "\rExecuting stress test $c of $LOOP_COUNT..."
 
 	# 1. Clean project
 	result="$(cargo clean 2>&1)"
