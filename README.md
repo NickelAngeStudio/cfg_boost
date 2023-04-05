@@ -1,7 +1,7 @@
 
 # cfg_boost
 
-Revamped syntax and macros to easily manage all #[cfg] parameters in one package. See [features](https://github.com/NickelAngeStudio/cfg_boost/wiki/Features) to get the full list of features like aliases, attributes, automatic requirement tags documentation and more.
+Revamped syntax and macros to easily manage all #[cfg] parameters in one package. See [features](https://github.com/NickelAngeStudio/cfg_boost/wiki/Features) to get the full list of features like aliases, attributes, automatic dependency tag documentation and more.
 
 ## Example
 **Transform this :**
