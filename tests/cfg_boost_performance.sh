@@ -73,7 +73,8 @@ execute_performance_test() {
 		start_time="$(date -u +%s%6N)"
 		result="$(cargo build --release 2>&1)"
 		end_time="$(date -u +%s%6N)"
-		if [[ "$result" != *"Finished release"* ]]; then	# If build fail, show message and return 1.
+		status=$?
+		if (( $status != 0 )) ; then	# If build fail, show message and return 1.
 			echo $result
 			echo "-------------------------------"
 			cat 'src/main.rs'	# Dump main.rs that caused error

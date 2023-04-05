@@ -14,5 +14,5 @@ jobs:
     - uses: actions/checkout@v3
     - name: Nightly toolchain
       run: rustup toolchain install nightly-x86_64-unknown-linux-gnu
-    - name: Stress tests
+    - name: Performance tests
       run: bash tests/cfg_boost_tests.sh -p

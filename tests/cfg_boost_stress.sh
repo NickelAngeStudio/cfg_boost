@@ -268,7 +268,8 @@ do
 	
 	# 7. Compile project as release
 	result="$(cargo build --release 2>&1)"
-	if [[ "$result" != *"Finished release"* ]]; then	# If build fail, show message and return 1.
+	status=$?
+	if (( $status != 0 )) ; then	# If build fail, show message and return 1.
 		echo $result
 		echo "-------------------------------"
 		cat 'src/main.rs'	# Dump main.rs that caused error
