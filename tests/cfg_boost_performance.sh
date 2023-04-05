@@ -24,7 +24,7 @@
 ####################################################
 
 # Loop count of performance test
-LOOP_COUNT=250 		# Takes about 5 minutes per comparison, 15 minutes total.
+LOOP_COUNT=1000		# Takes about 20 minutes per comparison, 60 minutes total.
 
 # Validate that call comes from cfg_boost_tests.sh
 if [[ "${PWD##*/}" != "$1" ]]; then
@@ -44,16 +44,18 @@ compare_control_vs_subject(){
 	# Execute control performance test
 	execute_performance_test "$2" "$1"
 	ctrl_elapsed=$test_time_elapsed
-	echo -en "\rFinished $1 performance test... $ctrl_elapsed ms"
+	ctrl_elapsed_ms=$(($ctrl_elapsed / 1000))
+	echo -en "\rFinished $1 performance test... ~$ctrl_elapsed_ms ms"
 	
 	# Execute subject performance test
 	echo ""
 	execute_performance_test "$4" "$3"
 	subj_elapsed=$test_time_elapsed
-	echo -en "\rFinished $3 performance test... $subj_elapsed ms"
+	subj_elapsed_ms=$(($subj_elapsed / 1000))
+	echo -en "\rFinished $3 performance test... ~$subj_elapsed_ms ms"
 	
 	# Show time difference between both.
-	cmp_time_diff=$(($subj_elapsed-$ctrl_elapsed))
+	cmp_time_diff=$((($subj_elapsed-$ctrl_elapsed) / 1000))
 	echo ""
 	echo -e "\033[1;33mPerformance cost of '$3' for $LOOP_COUNT optimized compilation is $cmp_time_diff ms.\033[0m"
 }
@@ -68,9 +70,15 @@ execute_performance_test() {
 	do
 		echo -en "\rExecute $2 performance test... $c of $LOOP_COUNT"
 		result="$(cargo clean 2>&1)"	# Clean project to get fresh compilation
-		start_time="$(date -u +%s%3N)"
+		start_time="$(date -u +%s%6N)"
 		result="$(cargo build --release 2>&1)"
-		end_time="$(date -u +%s%3N)"
+		end_time="$(date -u +%s%6N)"
+		if [[ "$result" != *"Finished release"* ]]; then	# If build fail, show message and return 1.
+			echo $result
+			echo "-------------------------------"
+			cat 'src/main.rs'	# Dump main.rs that caused error
+			exit 1
+		fi
 		test_time_elapsed="$(($test_time_elapsed+$end_time-$start_time))"	# Add time used only for compilation
 	done
 }
