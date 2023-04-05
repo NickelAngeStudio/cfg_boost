@@ -1,4 +1,4 @@
-name: ubuntu-stress
+name: ubuntu-performance
 
 on: workflow_dispatch
 
