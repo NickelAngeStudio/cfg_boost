@@ -32,6 +32,12 @@ fi
 # Project test name
 PRJ_TEST_NAME=$1
 
+# Verbose
+VERBOSE=$2
+
+# Exit on error
+EXIT_ON_ERROR=$3
+
 #############
 # FUNCTIONS #
 #############
@@ -49,10 +55,17 @@ run_test() {
 	# Evaluate result
 	if [[ "$result" == *"$2"* ]]; then
 		TOTAL_PASSED=$((TOTAL_PASSED+1))
-		echo -e "\033[1;34mTEST $1\033[0m        [\033[1;32mPASS\033[0m]"
+		if [[ "$VERBOSE" == "Y" ]]; then
+			echo -e "\033[1;34mTEST $1\033[0m        [\033[1;32mPASS\033[0m]"
+		fi
 	else
 		echo $result
-		echo -e "\033[1;34mTEST $1\033[0m        [\033[1;31mFAIL\033[0m]"
+		if [[ "$VERBOSE" == "Y" ]]; then
+			echo -e "\033[1;34mTEST $1\033[0m        [\033[1;31mFAIL\033[0m]"
+		fi
+		if [[ "$EXIT_ON_ERROR" == "Y" ]]; then
+			exit 1
+		fi
 	fi
 
 }
@@ -63,9 +76,16 @@ doc_test_has() {
 	source=`cat target/doc/$PRJ_TEST_NAME/index.html`
 	if [[ "$source" == *"$2"* ]]; then
 		TOTAL_PASSED=$((TOTAL_PASSED+1))
-		echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;32mPASS\033[0m]"
+		if [[ "$VERBOSE" == "Y" ]]; then
+			echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;32mPASS\033[0m]"
+		fi
 	else
-		echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;31mFAIL\033[0m]"
+		if [[ "$VERBOSE" == "Y" ]]; then
+			echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;31mFAIL\033[0m]"
+		fi
+		if [[ "$EXIT_ON_ERROR" == "Y" ]]; then
+			exit 1
+		fi
 	fi
 }
 
@@ -74,10 +94,17 @@ doc_test_hasnt() {
 	TOTAL_TESTS=$((TOTAL_TESTS+1))
 	source=`cat target/doc/$PRJ_TEST_NAME/index.html`
 	if [[ "$source" == *"stab portability"* ]]; then
-		echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;31mFAIL\033[0m]"
+		if [[ "$VERBOSE" == "Y" ]]; then
+			echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;31mFAIL\033[0m]"
+		fi
+		if [[ "$EXIT_ON_ERROR" == "Y" ]]; then
+			exit 1
+		fi
 	else
 		TOTAL_PASSED=$((TOTAL_PASSED+1))
-		echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;32mPASS\033[0m]"
+		if [[ "$VERBOSE" == "Y" ]]; then
+			echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;32mPASS\033[0m]"
+		fi
 	fi
 }
 
@@ -88,9 +115,9 @@ doc_test_hasnt() {
 run_test 001.rs "Target must not contain space."
 run_test 002.rs "This is hello world from cfg_boost!"
 
-# T3~T4 CfgBoostError::EmptyNode error.
-run_test 003.rs "Empty node generated from attributes. Are you missing a statement between separator"
-run_test 004.rs "Test 004 completed!"
+# T3~T4 CfgBoostError::EmptyNode error. * NOT TESTED ANYMORE SINCE CATCHED EARLIER THAN SYNTAX TREE *
+# run_test 003.rs "Empty node generated from attributes. Are you missing a statement between separator"
+# run_test 004.rs "Test 004 completed!"
 
 # T5~T6 CfgBoostError::InvalidCharacter error.
 run_test 005.rs "Invalid character"

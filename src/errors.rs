@@ -1,4 +1,4 @@
-use crate::arm::{ARM_SEPARATOR, CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1, WILDCARD_BRANCH};
+use crate::arm::{ARM_SEPARATOR, CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1, WILDCARD_ARM};
 
 /// Possible cfg_boost errors.
 pub enum CfgBoostError {
@@ -37,6 +37,9 @@ pub enum CfgBoostError {
 
     /// Happens when trying to use target_cfg! inside a function.
     TargetInFunction,
+
+    /// Happens when legacy syntax is incorrect
+    LegacySyntaxError,
 }
 
 /// Error message implementation.
@@ -52,9 +55,10 @@ impl CfgBoostError {
             CfgBoostError::WildcardArmNotLast => format!("Wildcard branch `_` must ALWAYS be the last branch."),
             CfgBoostError::ArmSeparatorMissing => format!("Arm syntax incorrect. Are you missing a separator `{}` between arms?", ARM_SEPARATOR),
             CfgBoostError::ContentSeparatorError => format!("Arm syntax incorrect. Is your arm separator `{}{}` syntax Ok?", CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1),
-            CfgBoostError::WildcardArmMissing => format!("Ensure that all possible cases are being handled by adding a match arm with a `{}` wildcard pattern.", WILDCARD_BRANCH),
-            CfgBoostError::WildcardArmOnTarget => format!("target_cfg! macro cannot have a `{}` wildcard pattern.", WILDCARD_BRANCH),
+            CfgBoostError::WildcardArmMissing => format!("Ensure that all possible cases are being handled by adding a match arm with a `{}` wildcard pattern.", WILDCARD_ARM),
+            CfgBoostError::WildcardArmOnTarget => format!("target_cfg! macro cannot have a `{}` wildcard pattern.", WILDCARD_ARM),
             CfgBoostError::TargetInFunction => format!("target_cfg! macro cannot be used inside a function. Use match_cfg! instead."),
+            CfgBoostError::LegacySyntaxError => format!("Legacy syntax error in `{}`.", tokens),
         }
     }
 }

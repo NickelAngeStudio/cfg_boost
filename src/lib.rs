@@ -53,8 +53,8 @@
 //! ```
 //! 
 //! [Get more examples on the wiki.](https://github.com/NickelAngeStudio/cfg_boost/wiki/Examples)
-use ts::{ generate_target_content, generate_meta_content, generate_match_content};
-use proc_macro::{TokenStream};
+use arm::TargetArm;
+use proc_macro::{TokenStream, TokenTree, Group, Delimiter};
 
 /// Errors enumeration
 mod errors;
@@ -65,11 +65,18 @@ mod config;
 /// Arms structure and functions
 mod arm;
 
-/// Tokenstream generator functions
-mod ts;
-
 /// Syntax tree
 mod syntax;
+
+/// Proc macro source enumeration to determinate matching macro source.
+#[derive(Clone, Copy)]
+pub(crate) enum CfgBoostMacroSource {
+    /// Call come from target_cfg! macro.
+    TargetMacro,
+
+    /// Call come from match_cfg! macro.
+    MatchMacro,
+}
 
 /// Procedural macro used to declare resource and item outside function.
 /// 
@@ -86,14 +93,14 @@ mod syntax;
 /// ## Syntax
 /// ```ignore
 /// target_cfg!{
-///     !? alias* (| &)? !? value:pred* => {},
-///     !? alias* (| &)? !? value:pred* => {},
+///     !? alias* (| &)? !? value:pred* => {},+
+///     #[cfg(legacy_syntax)] => {},+    // target_cfg! also support legacy syntax
 /// }
 /// ```
 /// [More details on syntax here.](https://github.com/NickelAngeStudio/cfg_boost/wiki/Syntax)
 /// 
 /// ## Documentation
-/// target_cfg! always wrap arm with `doc | (arm)` if `doc` is not defined in the arm. This allow `cargo doc` to always generate documentation of each arm. 
+/// target_cfg! always wrap arm with `doc | (arm)` if `doc` is not defined in the arm (even for legacy syntax). This allow `cargo doc` to always generate documentation of each arm. 
 /// This feature can be deactivated. [More details here](https://github.com/NickelAngeStudio/cfg_boost/wiki/Documentation)
 /// 
 /// **BONUS :** target_cfg! can also generate those dependency tags. 
@@ -127,7 +134,7 @@ mod syntax;
 /// **becomes**
 /// ```ignore
 /// target_cfg!{
-///     !windows => {
+///     #[cfg(not(windows))] => {     // Legacy syntax example.
 ///         /// This function is not for windows
 ///         pub fn not_for_windows() {
 ///         }
@@ -151,8 +158,33 @@ mod syntax;
 #[proc_macro]
 pub fn target_cfg(item: TokenStream) -> TokenStream {
 
-    // Generate content from target_cfg! macro source.
-    generate_target_content(item)
+    // TokenStream that accumulate content
+    let mut content = TokenStream::new();
+
+    // 1. Extract target arms
+    let arms = TargetArm::extract(item.clone(), CfgBoostMacroSource::TargetMacro);
+
+    // 2. For each arm
+    for arm in arms {
+
+        // 2.1. Split item into vector of items
+        let items = syntax::split_items(arm.content.clone());
+
+        // 2.2. For each item in vector of items
+        for item in items {
+            // 2.2.1. Add cfg header.
+            content.extend(arm.cfg_ts.clone()); 
+
+            // 2.2.2. Add cfg_attr
+            content.extend(arm.attr_ts.clone());
+
+            // 2.2.3. Add item to content
+            content.extend(item);
+        }
+    }
+
+    // 3. Return content.
+    content
 
 }
 
@@ -171,9 +203,9 @@ pub fn target_cfg(item: TokenStream) -> TokenStream {
 /// ## Syntax
 /// ```ignore
 /// match_cfg!{
-///     !? alias* (| &)? !? value:pred* => {},
-///     !? alias* (| &)? !? value:pred* => {},
-///     _ => {}     // Wildcard arm
+///     !? alias* (| &)? !? value:pred* => {},+
+///     #[cfg(legacy_syntax)] => {},+    // match_cfg! also support legacy syntax
+///     _ => {}+?     // Mandatory wildcard arm
 /// };?
 /// ```
 /// [More details on syntax here.](https://github.com/NickelAngeStudio/cfg_boost/wiki/Syntax)
@@ -222,7 +254,7 @@ pub fn target_cfg(item: TokenStream) -> TokenStream {
 /// 
 ///     match_cfg!{
 ///         linux => println!("linux={}", a),
-///         windows => println!("windows={}", a),
+///         #[cfg(windows)] => println!("windows={}", a),   // Legacy syntax example
 ///         _ => println!("not linux and not windows={}", a),
 ///     };
 /// }
@@ -231,8 +263,23 @@ pub fn target_cfg(item: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn match_cfg(item: TokenStream) -> TokenStream {
 
-    // Generate content for match_cfg! macro.
-    generate_match_content(item)
+     // TokenStream that accumulate content
+     let mut content = TokenStream::new();
+
+     // 1. Extract target arms
+     let arms = TargetArm::extract(item.clone(), CfgBoostMacroSource::MatchMacro);
+ 
+     // 2. For each arm
+     for arm in arms {
+         // 2.1. Add cfg header.
+         content.extend(arm.cfg_ts.clone()); 
+ 
+         // 2.2. Add braced content
+         content.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace, arm.content.clone()))));
+     }
+ 
+     // 3. Add braces around content then return it.
+     TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace,content)))
 
 }
 
@@ -247,6 +294,9 @@ pub fn match_cfg(item: TokenStream) -> TokenStream {
 /// ## Syntax
 /// ```ignore
 /// #[meta_cfg(!? alias* (| &)? !? value:pred*)]
+/// item
+/// 
+/// #[meta_cfg(#[cfg(legacy_syntax)])]  // meta_cfg also support legacy syntax.
 /// item
 /// ```
 /// [More details on syntax here.](https://github.com/NickelAngeStudio/cfg_boost/wiki/Syntax)
@@ -274,7 +324,12 @@ pub fn match_cfg(item: TokenStream) -> TokenStream {
 #[proc_macro_attribute]
 pub fn meta_cfg(attr: TokenStream, item: TokenStream) -> TokenStream {
 
-    // Generate attribute content.
-    generate_meta_content(attr, item)
+    // 1. Generate target_cfg! syntax
+    let mut stream = attr;
+    stream.extend(" => ".parse::<TokenStream>().unwrap());  // Add separator
+    stream.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Brace,item))));   // Add braced content
+
+    // 2. Generate tokenstream with target_cfg! macro
+    target_cfg(stream)
 
 }

@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, path::Path, fs};
 
 use crate::errors::CfgBoostError;
 
@@ -7,6 +7,10 @@ pub(crate) const ENV_KEY_PREDICATE : &str = "cfg_boost_predicate-";            /
 pub(crate) const ENV_KEY_ALIAS : &str = "cfg_boost-";                          // Key used to fetch custom aliases
 pub(crate) const PREDICATE_PLACEHOLDER : &str = "{}";                          // Predicate placeholder
 const AUTO_DOC_KEY : &str = "cfg_boost_autodoc";                               // Key for cfg_boost autodocumentation parameter.
+const CFG_BOOST_CARGO_CACHE : &str = "CFG_BOOST_ATTR_DOC_SET";      // Key value of cargo.toml caching.
+const CFG_BOOST_DOCRS_TAG : &str = "[package.metadata.docs.rs]";    // Tag to search in Cargo.toml
+const CARGO_MANIFEST_DIR : &str = "CARGO_MANIFEST_DIR";             // Cargo manifest dir key
+const CARGO_MANIFEST_NAME : &str = "Cargo.toml";                    // Cargo manifest file name
 
 // Aliases
 pub(crate) const LINUX_ALIAS : (&str, &str) = ("linux", "linux:os");            // Linux alias and value
@@ -49,6 +53,45 @@ pub(crate) fn is_cfg_boost_autodoc() -> bool {
         Err(_) => true,     // If not set, return true as default
     }
 }
+
+
+/// Returns True if cfg-attr is generated for documentation labels.
+#[inline(always)]
+pub(crate) fn if_docsrs_enabled() -> bool {
+    // 1. Get previous result from cache. 
+    match env::var(CFG_BOOST_CARGO_CACHE) {
+        Ok(value) => {
+            value.eq("true")
+        },
+        Err(_) => {
+            // 2. Read Cargo.toml if no result
+            let str_path =  format!("{}/{}", env::var(CARGO_MANIFEST_DIR).unwrap(), CARGO_MANIFEST_NAME);
+            let file_path = Path::new(&str_path);
+
+            match fs::read_to_string(file_path){
+                Ok(content) => {
+                    match content.find(CFG_BOOST_DOCRS_TAG){
+                        Some(_) => { 
+                            env::set_var(CFG_BOOST_CARGO_CACHE, "true");    // Cache result
+                            true
+                        },
+                        None => {
+                            env::set_var(CFG_BOOST_CARGO_CACHE, "false");    // Cache result
+                            false
+                        },
+                    }
+                },
+
+                // Cargo.toml not found, return false.
+                Err(_) => {
+                    env::set_var(CFG_BOOST_CARGO_CACHE, "false");
+                    false
+                },
+            }
+        }
+    }
+}
+
 
 /// Parse tokens to generate configuration predicate.
 /// 
