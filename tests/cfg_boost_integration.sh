@@ -70,6 +70,31 @@ run_test() {
 
 }
 
+# Generate cargo documentation. $1 == 0 is without nightly
+generate_doc(){
+	# Clean before generating docs
+	result="$(cargo clean 2>&1)"
+	
+	if (( $1 == 0 )) ; then
+		# Generate normally
+		result="$(cargo doc 2>&1)"
+		status=$?
+		if (( $status != 0 )) ; then	# If doc fail, show message and return 1.
+			echo $result
+			exit 1
+		fi
+	else
+		# Generate nightly
+		result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
+		status=$?
+		if (( $status != 0 )) ; then	# If doc fail, show message and return 1.
+			echo $result
+			exit 1
+		fi
+	fi
+	
+}
+
 # Read documentation and verify if it contains $2. $1 is used to label test.
 doc_test_has() {
 	TOTAL_TESTS=$((TOTAL_TESTS+1))
@@ -82,6 +107,7 @@ doc_test_has() {
 	else
 		if [[ "$VERBOSE" == "Y" ]]; then
 			echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;31mFAIL\033[0m]"
+			echo "$source"
 		fi
 		if [[ "$EXIT_ON_ERROR" == "Y" ]]; then
 			exit 1
@@ -96,6 +122,7 @@ doc_test_hasnt() {
 	if [[ "$source" == *"stab portability"* ]]; then
 		if [[ "$VERBOSE" == "Y" ]]; then
 			echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;31mFAIL\033[0m]"
+			echo "$source"
 		fi
 		if [[ "$EXIT_ON_ERROR" == "Y" ]]; then
 			exit 1
@@ -181,7 +208,7 @@ run_test 026.rs "Test 026 completed!"
 
 # T27 Generate documentation without [package.metadata.docs.rs] and read generated file to make sure labels are NOT included.
 run_test 027.rs "Test 027 completed!"
-result="$(cargo doc 2>&1)"
+generate_doc 0
 
 # HTML must NOT have label with class tab portability
 doc_test_hasnt "DOC001" "stab portability"
@@ -207,12 +234,10 @@ echo "rustdoc-args = [\"--cfg\", \"docsrs\"]" >> Cargo.toml
 
 # T28 Generate documentation with [package.metadata.docs.rs] and read generated file to make sure labels are included.
 run_test 028.rs "Test 028 completed!"
-result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
-
+generate_doc 1
 
 # HTML must have label with class tab portability
 doc_test_has "DOC013" "stab portability"
-
 
 # T29~T30 CfgBoostError::WildcardArmOnTarget error.
 run_test 029.rs "target_cfg! macro cannot have a"
@@ -220,7 +245,7 @@ run_test 030.rs "Test 030 completed!"
 
 # T31 Generate documentation with [package.metadata.docs.rs] while deactivating documentation. Read generated file to make sure labels are NOT included.
 run_test 031.rs "Test 031 completed!"
-result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
+generate_doc 1
 
 # HTML must NOT have label with class tab portability
 doc_test_hasnt "DOC014" "stab portability"
@@ -231,18 +256,15 @@ run_test 033.rs "Test 033 completed!"
 
 # T34-T35 Auto documentation config
 cp -r "../tests/rs/034.rs" "src/main.rs"  
-result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
+generate_doc 1
 
 doc_test_has "DOC015" "stab portability"
 
 # Copy autodoc ovveride config.toml
 cp -r "../tests/rs/autodoc.toml" ".cargo/config.toml"  
 
-# Clean cargo
-result="$(cargo clean 2>&1)"
-
 # Rerun doc
-result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
+generate_doc 1
 
 # Previously documented elements should now be gone.
 doc_test_hasnt "DOC016" "stab portability"
@@ -257,7 +279,14 @@ run_test 038.rs "Test 038 completed!"
 # T39 Legacy syntax in meta_cfg!
 run_test 039.rs "Test 039 completed!"
 
+#T40-T42 CfgBoostError::MixedSyntaxError
+run_test 040.rs "Legacy syntax and simplified syntax can't be mixed on same arm!"
+run_test 041.rs "Legacy syntax and simplified syntax can't be mixed on same arm!"
+run_test 042.rs "Test 042 completed!"
 
+#T43-T44 CfgBoostError::ContentSeparatorMissing
+run_test 043.rs "Arm content separator"
+run_test 044.rs "Test 044 completed!"
 
 #########
 # TOTAL #

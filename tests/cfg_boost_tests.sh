@@ -92,7 +92,14 @@ init_loop_count() {
 ########
 # INIT #
 ########
-# 0. Global variables from arguments
+# 1. Change working directory for where the script is located.
+cd "$(dirname "$0")"
+
+
+# 2. Delete test folder if already exists
+rm -r ../$PRJ_TEST_NAME
+
+# 3. Global variables from arguments
 TEST_TYPE=""
 VERBOSE="N"
 LOOP_COUNT=""
@@ -128,20 +135,16 @@ if [[ "$TEST_TYPE" == "" ]]; then
 fi
 
 
-
-# 0. Change working directory for where the script is located.
-cd "$(dirname "$0")"
-
-# 1. Clear screen
+# 4. Clear screen
 printf "\033c"
 
-# 2. Go to cfg_boost root
+# 5. Go to cfg_boost root
 cd ..
 
-# 3. Generate target_cfg package, allowing dirty
+# 6. Generate target_cfg package, allowing dirty
 cargo package --allow-dirty
 
-# 4. Get package version from Cargo.toml
+# 7. Get package version from Cargo.toml
 package_version=""
 while read line; do    
     if [[ "$line" == *"version ="* ]]; then
@@ -149,19 +152,19 @@ while read line; do
 	fi
 done < Cargo.toml
 
-# 5. Generate blank project for test
+# 8. Generate blank project for test
 cargo new $PRJ_TEST_NAME
 
-# 6. Copy package into project
+# 9. Copy package into project
 cp -r "target/package/cfg_boost-$package_version" "$PRJ_TEST_NAME/cfg_boost-$package_version"
 
 
-# 7. Add depedency to new project cargo.toml
+# 10. Add depedency to new project cargo.toml
 echo "cfg_boost = { path = \"cfg_boost-$package_version\", version = \"$package_version\" }" >> $PRJ_TEST_NAME/Cargo.toml
 echo "" >> $PRJ_TEST_NAME/Cargo.toml
 
 
-# 8. Move to test project folder
+# 11. Move to test project folder
 cd $PRJ_TEST_NAME
 
 
