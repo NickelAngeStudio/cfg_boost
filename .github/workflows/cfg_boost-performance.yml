@@ -1,4 +1,4 @@
-name: ubuntu-performance
+name: cfg_boost-performance
 
 on: workflow_dispatch
 

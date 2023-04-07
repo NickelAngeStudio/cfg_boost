@@ -1,0 +1,18 @@
+name: cfg_boost-integration
+
+on: workflow_dispatch
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  stress:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+    - name: Nightly toolchain
+      run: rustup toolchain install nightly-x86_64-unknown-linux-gnu
+    - name: Stress tests
+      run: bash tests/cfg_boost_tests.sh -i -v
