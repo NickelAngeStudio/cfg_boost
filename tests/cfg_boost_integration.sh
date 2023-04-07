@@ -115,9 +115,9 @@ doc_test_hasnt() {
 run_test 001.rs "Target must not contain space."
 run_test 002.rs "This is hello world from cfg_boost!"
 
-# T3~T4 CfgBoostError::EmptyNode error. * NOT TESTED ANYMORE SINCE CATCHED EARLIER THAN SYNTAX TREE *
-# run_test 003.rs "Empty node generated from attributes. Are you missing a statement between separator"
-# run_test 004.rs "Test 004 completed!"
+# T3~T4 CfgBoostError::LegacySyntaxError error.
+run_test 003.rs "Legacy syntax error in"
+run_test 004.rs "Test 004 completed!"
 
 # T5~T6 CfgBoostError::InvalidCharacter error.
 run_test 005.rs "Invalid character"
@@ -186,6 +186,19 @@ result="$(cargo doc 2>&1)"
 # HTML must NOT have label with class tab portability
 doc_test_hasnt "DOC001" "stab portability"
 
+# HTML must have function documented
+doc_test_has "DOC002" "UnixOnly"
+doc_test_has "DOC003" "LinuxOnly"
+doc_test_has "DOC004" "windows_only"
+doc_test_has "DOC005" "android_only"
+doc_test_has "DOC006" "x64sse2"
+doc_test_has "DOC007" "wasm_only"
+doc_test_has "DOC008" "JohnDoe"
+doc_test_has "DOC009" "LinuxOnly2"
+doc_test_has "DOC010" "WindowsOnly2"
+doc_test_has "DOC011" "NotLinux"
+doc_test_hasnt "DOC012" "hidden_doc"
+
 # Add documentation metadata to test project 
 echo "[package.metadata.docs.rs]" >> Cargo.toml
 echo "all-features = true" >> Cargo.toml
@@ -198,7 +211,7 @@ result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
 
 
 # HTML must have label with class tab portability
-doc_test_has "DOC002" "stab portability"
+doc_test_has "DOC013" "stab portability"
 
 
 # T29~T30 CfgBoostError::WildcardArmOnTarget error.
@@ -210,7 +223,7 @@ run_test 031.rs "Test 031 completed!"
 result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
 
 # HTML must NOT have label with class tab portability
-doc_test_hasnt "DOC003" "stab portability"
+doc_test_hasnt "DOC014" "stab portability"
 
 # T32~T33 CfgBoostError::TargetInFunction error.
 run_test 032.rs "target_cfg! macro cannot be used inside a function. Use match_cfg! instead."
@@ -220,7 +233,7 @@ run_test 033.rs "Test 033 completed!"
 cp -r "../tests/rs/034.rs" "src/main.rs"  
 result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
 
-doc_test_has "DOC004" "stab portability"
+doc_test_has "DOC015" "stab portability"
 
 # Copy autodoc ovveride config.toml
 cp -r "../tests/rs/autodoc.toml" ".cargo/config.toml"  
@@ -232,7 +245,17 @@ result="$(cargo clean 2>&1)"
 result="$(RUSTDOCFLAGS="--cfg docsrs" cargo +nightly doc --all-features 2>&1)"
 
 # Previously documented elements should now be gone.
-doc_test_hasnt "DOC005" "stab portability"
+doc_test_hasnt "DOC016" "stab portability"
+
+# T36 Legacy syntax in target_cfg!
+run_test 036.rs "Test 036 completed!"
+
+# T37-T38 Legacy syntax in match_cfg!
+run_test 037.rs "Test 037 completed!"
+run_test 038.rs "Test 038 completed!"
+
+# T39 Legacy syntax in meta_cfg!
+run_test 039.rs "Test 039 completed!"
 
 
 

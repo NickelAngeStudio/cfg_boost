@@ -7,9 +7,7 @@ pub(crate) const ARM_SEPARATOR : char = ',';
 
 /// Target attribute => content separator
 pub(crate) const CONTENT_SEPARATOR_0 : char = '=';
-pub(crate) const CONTENT_SEPARATOR_0_VALUE : u8 = 1;
 pub(crate) const CONTENT_SEPARATOR_1 : char = '>';
-pub(crate) const CONTENT_SEPARATOR_1_VALUE : u8 = 2;
 
 /// Wild card _ arm symbol
 pub(crate) const WILDCARD_ARM : char = '_';
@@ -69,21 +67,28 @@ impl TargetArm {
         // Arm used to extract attr and content.
         let mut arm = TargetArm::new();
 
-        // Separator flags
-        let mut separator : u8 = 0;
+        // Tell if we are extracting for left_side or not
+        let mut left_side = true;
+
+        // Flag for 1st part of separator
+        let mut separator  = false;
 
         // 1. Extract Tokens from source
         for token in source {
-            if separator < CONTENT_SEPARATOR_0_VALUE + CONTENT_SEPARATOR_1_VALUE {  // Extract for left side (attributes)
-                Self::extract_attributes(&mut arm, token, &mut separator);
-            } else {    // Extract for right side (content)
-                Self::extract_content(&mut arm, &mut arms, token, &mut separator, macro_src);
+            // Handle punct to see if left or right side
+            if !Self::handle_arm_separator(&mut arm, token.clone(), &mut left_side, &mut separator) {
+                // If token was not handled by separator
+                if left_side {  // Extract for left side (attributes)
+                    Self::extract_attributes(&mut arm, token);
+                } else {    // Extract for right side (content)
+                    Self::extract_content(&mut arm, &mut arms, token, &mut left_side, macro_src);
+                }
             }
         }
 
         // 2. Add last arm if it were not added (missing `,` at last entry is not an error.)
-        if separator >= CONTENT_SEPARATOR_0_VALUE + CONTENT_SEPARATOR_1_VALUE {
-            Self::add_arm(&mut arms, &mut arm, macro_src);
+        if !left_side {
+            Self::add_arm(&mut arms, &mut arm, &mut left_side, macro_src);
         }
 
         // 3. Verify arms integrity before returning them
@@ -94,9 +99,136 @@ impl TargetArm {
 
     }
 
+
+    /// Extract tokens for attributes.
+    #[inline(always)]
+    fn extract_attributes(arm : &mut TargetArm, token : TokenTree) {
+        match token.clone() {
+            TokenTree::Group(grp) => {
+                match arm.arm_type {    // Make sure legacy syntax is correct
+                    TargetArmType::Legacy => match grp.delimiter() {
+                        Delimiter::Bracket => {},
+                        _ => panic!("{}", CfgBoostError::LegacySyntaxError.message(token.to_string().as_str())),  // Panic since legacy isn't formatted correctly
+                    },
+                    _ => {},
+                }
+                arm.arm_ts.extend(TokenStream::from(token));
+            },
+            TokenTree::Ident(ident) => match ident.to_string().as_str() {   // Verify if branch is wildcard with Ident
+                WILDCARD_ARM_STR => {
+                    if arm.arm_ts.is_empty() {    // Branch is a wildcard.
+                        arm.arm_type = TargetArmType::Wildcard;
+                    } else {
+                        arm.arm_ts.extend(TokenStream::from(token));
+                    }
+                },  
+
+                _ => arm.arm_ts.extend(TokenStream::from(token)),
+
+            },
+            TokenTree::Punct(punct) => match punct.as_char() {      // Verify syntax key symbol
+                LEGACY_ARM => {
+                    arm.arm_type = TargetArmType::Legacy;
+                    arm.arm_ts.extend(TokenStream::from(token));
+                },
+                CONTENT_SEPARATOR_0 | CONTENT_SEPARATOR_1 => {},    // Ignore tokens
+                _ => arm.arm_ts.extend(TokenStream::from(token)),
+            },
+            _ => arm.arm_ts.extend(TokenStream::from(token)), // Add token to attributes
+        }
+    }
+
+
+    /// Extract tokens for content.
+    #[inline(always)]
+    fn extract_content(arm : &mut TargetArm, arms : &mut Vec<TargetArm>, token : TokenTree, left_side : &mut bool, macro_src : CfgBoostMacroSource) {
+
+        match token.clone() {
+            TokenTree::Group(grp) => arm.content.extend(match grp.delimiter() {
+                proc_macro::Delimiter::Brace => {
+                    if arm.content.is_empty() { // Add group stream only if content is empty.
+                        grp.stream()  // Extract group stream
+                    } else {
+                        TokenStream::from(token) // Add token to content
+                    }
+                },
+                _ => TokenStream::from(token), // Add token to content
+            }),
+            TokenTree::Punct(punct) => match punct.as_char() {
+                ARM_SEPARATOR => Self::add_arm(arms, arm, left_side, macro_src),    // Add arm to vector.
+                _ => arm.content.extend(TokenStream::from(token)),  // Add content to arm
+            },
+             // Add content to arm
+            _ => arm.content.extend(TokenStream::from(token)),
+        }
+
+    }
+
+    /// Extract legacy predicates from legacy syntax
+    #[inline(always)]
+    fn extract_legacy_predicates(legacy : TokenStream) -> TokenStream {
+
+        for token in legacy.clone() {
+            match token {
+                TokenTree::Group(grp) => match grp.delimiter() {
+                    Delimiter::Parenthesis => return grp.stream(),
+                    Delimiter::Bracket => return Self::extract_legacy_predicates(grp.stream()),
+                    _ => {},
+                },
+                _ => {}
+            }
+        }
+
+        panic!("{}", CfgBoostError::LegacySyntaxError.message(legacy.to_string().as_str()));  // Panic since legacy isn't formatted correctly
+
+    }
+
+    /// Process tokens punctuation and determine if left side or right side.
+    /// 
+    /// Returns true if token was handled.
+    /// 
+    /// Panic(s)
+    /// Will panic! if arm separator comma is missing.
+    #[inline(always)]
+    fn handle_arm_separator(arm : &mut TargetArm, token : TokenTree, left_side : &mut bool, separator : &mut bool) -> bool {
+        match token.clone() {
+            TokenTree::Punct(punct) => {
+                match punct.as_char(){
+                    CONTENT_SEPARATOR_0 => {
+                        if *separator && *left_side {   // Double == in left side
+                            panic!("{}", CfgBoostError::ContentSeparatorError.message(""));
+                        } else {
+                            *separator = true;
+                        }
+                    },
+                    CONTENT_SEPARATOR_1 => {
+                        if *separator {
+                            *left_side = !*left_side;     // Switch side
+                            *separator = false;
+
+                            if *left_side && !arm.content.is_empty() {    // Missing comma `,` arm separator.
+                                panic!("{}", CfgBoostError::ArmSeparatorMissing.message(""));
+                            }
+
+                            return true;
+                        } else {
+                            if *left_side { // Missing = before >
+                                panic!("{}", CfgBoostError::ContentSeparatorError.message(""));
+                            }
+                        }                        
+                    },
+                    _ => *separator = false,    // Reset separator
+                }
+            },
+            _ => *separator = false // Reset separator
+        }
+
+        false
+    }
+
     /// Add arm to arms vector according to macro source.
     #[inline(always)]
-    fn add_arm(arms : &mut Vec<TargetArm>, arm : &mut TargetArm, macro_src : CfgBoostMacroSource){
+    fn add_arm(arms : &mut Vec<TargetArm>, arm : &mut TargetArm, left_side : &mut bool, macro_src : CfgBoostMacroSource){
 
         // 1. Extend pred_ts according to arm type
         arm.pred_ts.extend(match arm.arm_type {
@@ -128,6 +260,10 @@ impl TargetArm {
         // 3. Add arm to arms vector
         arms.push(arm.clone());
 
+        // 4. Reset arm and separator
+        *arm = TargetArm::new();
+        *left_side = true;
+
     }
 
     /// Generate #[cfg] tokenstream for target_cfg!.
@@ -135,21 +271,7 @@ impl TargetArm {
     #[inline(always)]
     fn generate_target_cfg_ts(pred_ts : TokenStream) -> TokenStream {
 
-        let mut cfg_ts = TokenStream::new();
-
-        // 1. Add # char
-        cfg_ts.extend(TokenStream::from(TokenTree::from(Punct::new(LEGACY_ARM, proc_macro::Spacing::Joint))));
-
-        // 2. Create cfg(predicates) in a temporary tokenstream
-        let mut cfg_pred = TokenStream::new();
-        cfg_pred.extend(TokenStream::from(TokenTree::from(Ident::new("cfg", Span::call_site()))));
-        cfg_pred.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis, pred_ts))));
-
-        // 3. Add cfg_predicates to cfg_ts
-        cfg_ts.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Bracket, cfg_pred))));
-
-        // 4. Return tokenstream
-        cfg_ts
+        format!("#[cfg({})]", pred_ts.to_string()).parse::<TokenStream>().unwrap()
 
     }
 
@@ -158,32 +280,11 @@ impl TargetArm {
     #[inline(always)]
     fn generate_target_attr_ts(pred_ts : TokenStream) -> TokenStream {
 
-        let mut attr_ts = TokenStream::new();
-
         if if_docsrs_enabled() {    // Only is docsrs is enabled
-            // 1. Add # char
-            attr_ts.extend(TokenStream::from(TokenTree::from(Punct::new(LEGACY_ARM, proc_macro::Spacing::Joint))));
-
-            // 2. Create cfg(predicates) in a temporary tokenstream
-            let mut cfg_pred = TokenStream::from(TokenTree::from(Ident::new("cfg", Span::call_site())));
-            cfg_pred.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis, pred_ts))));
-
-            // 3. Create docsrs, doc() wrapping
-            let mut doc_pred = TokenStream::from(TokenTree::from(Ident::new("docsrs", Span::call_site())));
-            doc_pred.extend(TokenStream::from(TokenTree::from(Punct::new(ARM_SEPARATOR, proc_macro::Spacing::Alone))));
-            doc_pred.extend(TokenStream::from(TokenTree::from(Ident::new("doc", Span::call_site()))));
-            doc_pred.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis, cfg_pred))));
-
-            // 4. Create cfg_attr( wrapping
-            let mut cfg_pred = TokenStream::from(TokenTree::from(Ident::new("cfg_attr", Span::call_site())));
-            cfg_pred.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis, doc_pred))));
-
-            // 5. Add cfg_predicates to attr_ts
-            attr_ts.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Bracket, cfg_pred))));
+            format!("#[cfg_attr(docsrs, doc(cfg({})))]", pred_ts.to_string()).parse::<TokenStream>().unwrap()
+        } else {
+            TokenStream::new()
         }
-
-        // 6. Return tokenstream
-        attr_ts
 
     }
 
@@ -192,29 +293,7 @@ impl TargetArm {
     #[inline(always)]
     fn generate_match_cfg_ts(pred_ts : TokenStream, arms : &Vec<TargetArm>) -> TokenStream {
 
-        let mut cfg_ts = TokenStream::new();
-
-        // 1. Add # char
-        cfg_ts.extend(TokenStream::from(TokenTree::from(Punct::new(LEGACY_ARM, proc_macro::Spacing::Joint))));
-
-        // 2. Create exclusive, pred
-        let mut ex_content = Self::extract_match_cfg_ts_from_arms(arms);
-        ex_content.extend(TokenStream::from(TokenTree::from(Punct::new(ARM_SEPARATOR, proc_macro::Spacing::Alone))));  // Add ,
-        ex_content.extend(pred_ts);
-
-        // 3. Wrap exclusive arms and pred
-        let mut ex_ts = TokenStream::from(TokenTree::from(Ident::new("all", Span::call_site())));
-        ex_ts.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis, ex_content))));
-        
-        // 4. Create cfg(predicates) in a temporary tokenstream
-        let mut cfg_pred = TokenStream::from(TokenTree::from(Ident::new("cfg", Span::call_site())));
-        cfg_pred.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis, ex_ts))));
-
-        // 5. Add cfg_predicates to cfg_ts
-        cfg_ts.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Bracket, cfg_pred))));
-
-        // 6. Return tokenstream
-        cfg_ts
+        format!("#[cfg(all({},{}))]", Self::extract_match_cfg_ts_from_arms(arms).to_string(), pred_ts.to_string()).parse::<TokenStream>().unwrap()
 
     }
 
@@ -230,7 +309,6 @@ impl TargetArm {
             pred_ts.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis, arm.pred_ts.clone()))));    // Add pred_ts in group
             pred_ts.extend(TokenStream::from(TokenTree::from(Punct::new(ARM_SEPARATOR, proc_macro::Spacing::Alone))));  // Add , at the end
         }
-
 
         // 2. Add predicates with parenthesis in all
         let mut ex_ts = TokenStream::from(TokenTree::from(Ident::new("all", Span::call_site())));
@@ -249,21 +327,10 @@ impl TargetArm {
 
         // Only if env setting is true
         if is_cfg_boost_autodoc() {
-
             if Self::is_set_attr_autodoc(pred_ts.clone()) { // If already set, change nothing
                 pred_ts
             } else {
-                // 1. Inside any()
-                let mut any_content = TokenStream::from(TokenTree::from(Ident::new(DOC_ALIAS.0, Span::call_site())));
-                any_content.extend(TokenStream::from(TokenTree::from(Punct::new(ARM_SEPARATOR, proc_macro::Spacing::Alone))));
-                any_content.extend(pred_ts);
-
-                // 2. Wrap any()
-                let mut doc_ts = TokenStream::from(TokenTree::from(Ident::new("any", Span::call_site())));
-                doc_ts.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis, any_content))));
-
-                // 3. Return new pred_ts
-                doc_ts
+                format!("any({}, {})", DOC_ALIAS.0, pred_ts).parse::<TokenStream>().unwrap()
             }
         } else {    // Make no changes
             pred_ts
@@ -275,97 +342,18 @@ impl TargetArm {
     #[inline(always)]
     fn is_set_attr_autodoc(attr : TokenStream) -> bool {
         for token in attr.clone() {
-            match token {
+            match token.clone() {
                 TokenTree::Ident(ident) => {
                     if ident.to_string().as_str().eq(DOC_ALIAS.0) {
                         return true;
                     }
                 },
-                _ => {},
+                TokenTree::Group(grp) => return Self::is_set_attr_autodoc(grp.stream()),
+                _ => {}               
             }
         }
 
         false
-    }
-
-    /// Extract tokens for attributes.
-    #[inline(always)]
-    fn extract_attributes(arm : &mut TargetArm, token : TokenTree, separator : &mut u8) {
-
-        match token.clone() {
-            TokenTree::Ident(ident) => match ident.to_string().as_str() {   // Verify if branch is wildcard with Ident
-                WILDCARD_ARM_STR => {
-                    if arm.arm_ts.is_empty() {    // Branch is a wildcard.
-                        arm.arm_type = TargetArmType::Wildcard;
-                    } else {
-                        arm.arm_ts.extend(TokenStream::from(token));
-                    }
-                },  
-
-                _ => arm.arm_ts.extend(TokenStream::from(token)),
-
-            },
-            TokenTree::Punct(punct) => match punct.as_char() {      // Verify syntax key symbol
-                LEGACY_ARM => {
-                    arm.arm_type = TargetArmType::Legacy;
-                    arm.arm_ts.extend(TokenStream::from(token));
-                },
-                CONTENT_SEPARATOR_0 => {
-                    if *separator != 0 {    // Content separator error.
-                        panic!("{}", CfgBoostError::ContentSeparatorError.message(""));
-                    }
-                    *separator +=  CONTENT_SEPARATOR_0_VALUE;
-                },
-                CONTENT_SEPARATOR_1 => {
-                    if *separator != CONTENT_SEPARATOR_0_VALUE {    // Content separator error.
-                        panic!("{}", CfgBoostError::ContentSeparatorError.message(""));
-                    }
-                    *separator +=  CONTENT_SEPARATOR_1_VALUE;
-                },
-                _ => arm.arm_ts.extend(TokenStream::from(token)),
-            },
-
-
-            _ => arm.arm_ts.extend(TokenStream::from(token)), // Add token to attributes
-        }
-    }
-
-
-    /// Extract tokens for content.
-    #[inline(always)]
-    fn extract_content(arm : &mut TargetArm, arms : &mut Vec<TargetArm>, token : TokenTree, separator : &mut u8, macro_src : CfgBoostMacroSource) {
-
-        match token.clone() {
-            TokenTree::Group(grp) => arm.content.extend(match grp.delimiter() {
-                proc_macro::Delimiter::Brace => {
-                    if arm.content.is_empty() { // Add group stream only if content is empty.
-                        grp.stream()  // Extract group stream
-                    } else {
-                        TokenStream::from(token) // Add token to content
-                    }
-                },
-                _ => TokenStream::from(token), // Add token to content
-            }),
-            TokenTree::Punct(punct) => match punct.as_char() {
-            
-                ARM_SEPARATOR => {
-                    // Add arm to vector.
-                    Self::add_arm(arms, arm, macro_src);
-    
-                    // Reset arm
-                    *arm = TargetArm::new();
-    
-                    // Reset separator
-                    *separator = 0;
-                },
-                // Add content to arm
-                _ => arm.content.extend(TokenStream::from(token)),
-    
-            },
-             // Add content to arm
-            _ => arm.content.extend(TokenStream::from(token)),
-        }
-
     }
 
 
@@ -373,10 +361,7 @@ impl TargetArm {
     #[inline(always)]
     fn verify_arms_integrity(macro_src : CfgBoostMacroSource, arms: &mut Vec<TargetArm>) {
 
-        // Verify missing comma
-        Self::verify_missing_comma(arms);
-
-        // Verify Wildcard arm according to macro source and that single macro has only 1 arm.
+        // Verify if target_cfg! contains no wildcard and is not in function and validate that match_cfg! has a wildcard arm.
         match macro_src {
             CfgBoostMacroSource::TargetMacro => {
                 if Self::has_wild_arm(&arms){  // Single macro doesn't accept wildcard arms!
@@ -399,31 +384,6 @@ impl TargetArm {
 
         
 
-    }
-
-    /// Scan for missing comma separator and panic! if any.
-    #[inline(always)]
-    fn verify_missing_comma(arms: &mut Vec<TargetArm>) {
-        for arm in arms {
-            // Upper level tokenstream shouldn't have =>, indicate missing `,`
-            let mut separator:u8 = 0;
-            for token in arm.content.clone() {
-                match token {
-                    TokenTree::Punct(punct) => match punct.as_char(){
-                        CONTENT_SEPARATOR_0 => {
-                            separator += CONTENT_SEPARATOR_0_VALUE;
-                        },
-                        CONTENT_SEPARATOR_1 => {
-                            if separator == CONTENT_SEPARATOR_0_VALUE {     // Missing `,`
-                                panic!("{}", CfgBoostError::ArmSeparatorMissing.message(""));
-                            }
-                        },
-                        _ => separator = 0,
-                    },
-                    _ => separator = 0,
-                }
-            }
-        }
     }
 
     /// Returns true if arm of macro is inside a function.
@@ -466,27 +426,5 @@ impl TargetArm {
         // If no match, return false
         has_wc
     }
-
-
-    /// Extract legacy predicates from legacy syntax
-    #[inline(always)]
-    fn extract_legacy_predicates(legacy : TokenStream) -> TokenStream {
-
-        for token in legacy.clone() {
-            match token {
-                TokenTree::Group(grp) => match grp.delimiter() {
-                    Delimiter::Parenthesis => return grp.stream(),
-                    Delimiter::Bracket => return Self::extract_legacy_predicates(grp.stream()),
-                    _ => {},
-                },
-                _ => {}
-            }
-        }
-
-        panic!("{}", CfgBoostError::LegacySyntaxError.message(legacy.to_string().as_str()));  // Panic since legacy isn't formatted correctlys
-
-    }
-
-
 
 }

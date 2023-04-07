@@ -32,14 +32,27 @@ fi
 # Project test name
 PRJ_TEST_NAME=$1
 
+# Verbose
+VERBOSE=$2
+
+# Exit on error
+EXIT_ON_ERROR=$3
+
+# Loop count of stress test
+LOOP_COUNT=$4
+
 # List of predefined and custom aliases
 ALIASES=("linux" "unix" "windows" "macos" "android" "ios" "wasm" "doc" "test" "desktop" "mobile" "pig" "dog" "cow" "parastratiosphecomyia_stratiosphecomyioides" "mosquito" "frog" "lion" "fish" "b")
 
 # List of predefined and custom predicates
 PREDICATES=("ar" "tf" "os" "fm" "ev" "ed" "pw" "vn" "at" "pn" "ft" "_" "c1" "c2" "c3" "c4" "c5" "c6" "c7" "c8" "c9" "really_long_predicate_and_i_mean_really_longgggggggggg" "x")
 
-# Number of loop of stress. About 100 minutes.
-LOOP_COUNT=1000
+# List of predefined legacy cfg
+LEGACY=("#[cfg(target_os=\"foo\")]"
+		"#[cfg(all(target_os=\"foo\", target_architecture=\"foo\"))]"
+		"#[cfg(all(unix, target_pointer_width = \"32\"))]"
+		"#[cfg(target_os = \"foo2\")]"
+		"#[cfg(feature = \"foo\")]")
 
 # Limit of block generated per section
 BLOCK_LIMIT=10
@@ -63,6 +76,19 @@ generate_main_header() {
 	# Overwrite main.rs
 	echo "#![cfg_attr(docsrs, feature(doc_cfg))]" > 'src/main.rs'
 	echo "use cfg_boost::{target_cfg, match_cfg, meta_cfg};" >> 'src/main.rs'
+}
+
+# Generate arm attributes from predicates or legacy
+generate_arm_attr() {
+
+	local pred_type=$(( $RANDOM % 5 ))
+	if [[ "$pred_type" == "0" ]]; then		# Legacy
+		local index=$(( $RANDOM % ${#LEGACY[@]} ))	# Generate legacy index
+		echo ${LEGACY[$index]}
+	else
+		echo $(generate_predicates)
+	fi
+
 }
 
 # Generate a string of predicates for arm or meta.
@@ -130,7 +156,7 @@ generate_target_cfg() {
 		local arm_total=$(( $RANDOM % $ARM_LIMIT ))
 		for (( a=0; a<=$arm_total; a++ ))
 		do
-			local pred=$(generate_predicates)
+			local pred=$(generate_arm_attr)
 			
 			# Open arm
 			echo "$pred => {"	>> 'src/main.rs'
@@ -180,7 +206,7 @@ generate_match_cfg() {
 		local arm_total=$(( $RANDOM % $ARM_LIMIT ))
 		for (( a=0; a<=$arm_total; a++ ))
 		do
-			local pred=$(generate_predicates)
+			local pred=$(generate_arm_attr)
 			local value=$(( $m*($RANDOM % $BLOCK_TOTAL) ))
 			
 			# Write arm
@@ -206,7 +232,7 @@ generate_meta_cfg() {
 	
 	for (( m=0; m<=$meta_total; m++ ))
 	do
-		local pred=$(generate_predicates)
+		local pred=$(generate_arm_attr)
 		echo "" >> 'src/main.rs'
 		
 		local gen_doc=$(( $RANDOM % 3 ))
@@ -246,7 +272,9 @@ echo -en "\033[0m"
 start_time="$(date -u +%s)"
 for (( c=1; c<=$LOOP_COUNT; c++ ))
 do
-	# echo -en "\rExecuting stress test $c of $LOOP_COUNT..."
+	if [[ "$VERBOSE" == "Y" ]]; then
+		echo -en "\rExecuting stress test $c of $LOOP_COUNT..."
+	fi
 
 	# 1. Clean project
 	result="$(cargo clean 2>&1)"

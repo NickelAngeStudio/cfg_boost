@@ -71,17 +71,17 @@ is_number() {
 
 # Initialize loop count
 init_loop_count() {
-	is_number $2	# Verify if 2nd parameter is number
+	is_number $1	# Verify if 2nd parameter is number
 	if (( $IS_NUMBER == 1 )) ; then
-		LOOP_COUNT=$2
+		LOOP_COUNT=$1
 	else
-		is_number $3 # Verify if 3rd parameter is number
+		is_number $2 # Verify if 3rd parameter is number
 		if (( $IS_NUMBER == 1 )) ; then
-			LOOP_COUNT=$3
+			LOOP_COUNT=$2
 		else
-			is_number $4 # Verify if 4th parameter is number
+			is_number $3 # Verify if 4th parameter is number
 			if (( $IS_NUMBER == 1 )) ; then
-				LOOP_COUNT=$4
+				LOOP_COUNT=$3
 			else
 				show_help # incorrect syntax
 			fi
@@ -103,13 +103,13 @@ fi
 if [[ "$1" == "-p" ]]; then
 	TEST_TYPE="PERFORMANCE"
 	init_loop_count $2 $3 $4
-	
 fi
 
 if [[ "$1" == "-s" ]]; then
 	TEST_TYPE="STRESS"
 	init_loop_count $2 $3 $4
 fi
+
 if [[ "$2" == "-v" ]]; then
 	VERBOSE="Y"
 fi
