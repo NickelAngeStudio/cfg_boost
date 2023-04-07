@@ -1,11 +1,20 @@
-// Test 004 : Empty nodes error corrected.
-use cfg_boost::{ meta_cfg };
+// Test 003 : CfgBoostError::LegacySyntaxError corrected.
+use cfg_boost::{ target_cfg };
 
 
-#[meta_cfg(desktop)]
-fn foo() -> String {
-    String::from("Test 004 completed!")
+target_cfg!{
+    linux => {
+        pub fn foo() -> String {
+            String::from("Test 004 completed!")
+        }
+    },
+    #[cfg(unix)] => {	// Corrected legacy syntax
+        pub fn foo1() -> String {
+            String::from("Test")
+        }
+    },
 }
+
 
 
 fn main() {

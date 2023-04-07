@@ -21,12 +21,6 @@ const OR_SYMBOL : char = '|';
 /// Syntax tree node used to parse attribute tokens.
 #[derive(Debug)]
 pub(crate) enum SyntaxTreeNode {
-    /// An empty Tree node.
-    EMPTY,
-
-    /// A wildcard Tree node always true.
-    WILDCARD,
-
     /// A Not node
     NOT(Node),
 
@@ -52,23 +46,11 @@ impl ToString for SyntaxTreeNode {
                     Ok(predicate) => format!("{}", predicate),
                     Err(err) => panic!("{}", err.message(label)),
                 },
-            SyntaxTreeNode::WILDCARD => String::from("all()"),
-            SyntaxTreeNode::EMPTY => String::from("all()"),
         }
     }
 }
 
 impl SyntaxTreeNode {
-    /// Create a wildard SyntaxTreeNode
-    pub fn wildcard_node() -> Node {
-        Rc::new(SyntaxTreeNode::WILDCARD)
-    }
-
-    /// Create an empty SyntaxTreeNode
-    pub fn empty_node() -> Node {
-        Rc::new(SyntaxTreeNode::EMPTY)
-    }
-
     /// Create a NOT SyntaxTreeNode
     pub fn not_node(child : Node) -> Node {
         Rc::new(SyntaxTreeNode::NOT(child.clone()))
@@ -268,4 +250,44 @@ pub(crate) fn split_tokenstream_at_operator(stream : TokenStream) -> Option<(cha
 
     }
 
+}
+
+
+/// Split tokenstream in different [item](https://doc.rust-lang.org/reference/items.html) vector tokenstream.
+/// 
+/// An item is defined as all tokens until a ; and/or {}.
+#[inline(always)]
+pub(crate) fn split_items(stream : TokenStream) -> Vec<TokenStream> {
+
+    let mut item = TokenStream::new();
+    let mut items : Vec<TokenStream> = Vec::new();
+
+    for t in stream {
+        match &t {
+            proc_macro::TokenTree::Group(grp) => {
+                // Validate if first and last character of group is 
+                match grp.delimiter(){
+                    proc_macro::Delimiter::Brace => {    // End of item. 
+                        item.extend(TokenStream::from(t)); // Add into item tokenstream
+                        items.push(item);   // Push item into vector.
+                        item = TokenStream::new();  // Reset item tokenstream
+                    },
+                    _ => item.extend(TokenStream::from(t)), // Add into item tokenstream
+                }
+            }
+            ,
+            proc_macro::TokenTree::Punct(punc) => {
+                if punc.as_char().eq(&';') { // End of item.
+                    item.extend(TokenStream::from(t)); // Add into item tokenstream
+                    items.push(item);   // Push item into vector.
+                    item = TokenStream::new();  // Reset item tokenstream
+                } else {
+                    item.extend(TokenStream::from(t)); // Add into item tokenstream
+                }
+            },
+            _ => item.extend(TokenStream::from(t)), // Add into item tokenstream
+        }
+    }
+
+    items
 }

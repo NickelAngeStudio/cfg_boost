@@ -23,9 +23,6 @@
 # 2023-04-03
 ####################################################
 
-# Loop count of performance test
-LOOP_COUNT=1000		# Takes about 20 minutes per comparison, 60 minutes total.
-
 # Validate that call comes from cfg_boost_tests.sh
 if [[ "${PWD##*/}" != "$1" ]]; then
     echo "ERROR : Stress test must be executed by cfg_boost_tests.sh"
@@ -34,6 +31,15 @@ fi
 
 # Project test name
 PRJ_TEST_NAME=$1
+
+# Verbose
+VERBOSE=$2
+
+# Exit on error
+EXIT_ON_ERROR=$3
+
+# Loop count of performance test
+LOOP_COUNT=$4
 
 #############
 # FUNCTIONS #
@@ -68,7 +74,9 @@ execute_performance_test() {
 	
 	for (( c=1; c<=$LOOP_COUNT; c++ ))
 	do
-		# echo -en "\rExecute $2 performance test... $c of $LOOP_COUNT"
+		if [[ "$VERBOSE" == "Y" ]]; then
+			echo -en "\rExecute $2 performance test... $c of $LOOP_COUNT"
+		fi
 		result="$(cargo clean 2>&1)"	# Clean project to get fresh compilation
 		start_time="$(date -u +%s%6N)"
 		result="$(cargo build --release 2>&1)"

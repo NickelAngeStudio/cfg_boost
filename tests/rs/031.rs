@@ -10,6 +10,12 @@ use cfg_boost::{ target_cfg, meta_cfg };
  * TARGET_CFG *
  **************/
 target_cfg!{
+	#[cfg(all(not(doc), unix))] => {
+		/// This struct is for unix only
+        pub struct UnixOnly {
+            a : u64
+        }
+	},
     !doc & linux => { 
         /// This struct is for linux only
         pub struct LinuxOnly {

@@ -6,10 +6,14 @@
 # Generate project `cfg_boost_test` to test cfg_boost proc macros.
 #
 # PARAMETERS
-# n/a
+# `-i` for integration test
+# `-p` for performance
+# `-s` for stress test
+# `-v` for verbose
+# `N` for test loop count
 #
 # USAGE
-# $ bash cfg_boost_tests.sh
+# $ bash cfg_boost_tests.sh [test_type] (verbose) [loop_count]
 #
 # NOTE
 #
@@ -26,12 +30,6 @@
 # Project test name
 PRJ_TEST_NAME="cfg_boost_test"
 
-# Count of tests passed
-TOTAL_PASSED=0
-
-# Count of total tests
-TOTAL_TESTS=0
-
 #############
 # FUNCTIONS #
 #############
@@ -40,9 +38,97 @@ remove_quotes() {
 	echo $(echo $(echo $1 | sed 's/"//g'))
 }
 
+# Help showed when syntax incorrect
+show_help() {
+	echo "cfg_boost_tests Usage"
+	echo "bash cfg_boost_tests.sh [test_type] (options) [loop_count]"
+	echo ""
+	echo "Test type"
+	echo "-i : Integration"
+	echo "-p : Performance"
+	echo "-s : Stress"
+	echo ""
+	echo "Options"
+	echo "-v : Verbose"
+	echo "-x : Quit on error without cleaning"
+	echo ""
+	echo "Loop count"
+	echo "1..N Loop count for performance or stress test"
+	
+	exit 0
+}
+
+# Return 1 in IS_NUMBER if number, 0 otherwise
+# Ref : https://stackoverflow.com/questions/806906/how-do-i-test-if-a-variable-is-a-number-in-bash
+is_number() {
+	local re='^[0-9]+$'
+	if ! [[ $1 =~ $re ]] ; then
+		IS_NUMBER=0
+	else
+		IS_NUMBER=1
+	fi
+}
+
+# Initialize loop count
+init_loop_count() {
+	is_number $1	# Verify if 2nd parameter is number
+	if (( $IS_NUMBER == 1 )) ; then
+		LOOP_COUNT=$1
+	else
+		is_number $2 # Verify if 3rd parameter is number
+		if (( $IS_NUMBER == 1 )) ; then
+			LOOP_COUNT=$2
+		else
+			is_number $3 # Verify if 4th parameter is number
+			if (( $IS_NUMBER == 1 )) ; then
+				LOOP_COUNT=$3
+			else
+				show_help # incorrect syntax
+			fi
+		fi
+	fi
+}
+
 ########
 # INIT #
 ########
+# 0. Global variables from arguments
+TEST_TYPE=""
+VERBOSE="N"
+LOOP_COUNT=""
+NO_CLEAN="N"
+if [[ "$1" == "-i" ]]; then
+	TEST_TYPE="INTEGRATION"
+fi
+if [[ "$1" == "-p" ]]; then
+	TEST_TYPE="PERFORMANCE"
+	init_loop_count $2 $3 $4
+fi
+
+if [[ "$1" == "-s" ]]; then
+	TEST_TYPE="STRESS"
+	init_loop_count $2 $3 $4
+fi
+
+if [[ "$2" == "-v" ]]; then
+	VERBOSE="Y"
+fi
+if [[ "$3" == "-v" ]]; then
+	VERBOSE="Y"
+fi
+if [[ "$2" == "-x" ]]; then
+	NO_CLEAN="Y"
+fi
+if [[ "$3" == "-x" ]]; then
+	NO_CLEAN="Y"
+fi
+
+if [[ "$TEST_TYPE" == "" ]]; then
+	show_help # incorrect syntax
+fi
+
+
+
 # 0. Change working directory for where the script is located.
 cd "$(dirname "$0")"
 
@@ -82,16 +168,22 @@ cd $PRJ_TEST_NAME
 ##############################
 # Run test and get exit code #
 ##############################
-if [[ "$1" == "-p" ]]; then
-	bash ../tests/cfg_boost_performance.sh $PRJ_TEST_NAME
-elif [[ "$1" == "-s" ]]; then
-	bash ../tests/cfg_boost_stress.sh $PRJ_TEST_NAME
+if [[ "$TEST_TYPE" == "PERFORMANCE" ]]; then
+	bash ../tests/cfg_boost_performance.sh $PRJ_TEST_NAME $VERBOSE $NO_CLEAN $LOOP_COUNT
+elif [[ "$TEST_TYPE" == "STRESS" ]]; then
+	bash ../tests/cfg_boost_stress.sh $PRJ_TEST_NAME $VERBOSE $NO_CLEAN $LOOP_COUNT
 else
-	bash ../tests/cfg_boost_integration.sh $PRJ_TEST_NAME
+	bash ../tests/cfg_boost_integration.sh $PRJ_TEST_NAME $VERBOSE $NO_CLEAN
 fi
 
 # Get running status result
 status=$?
+
+if (( $status != 0 )) ; then
+	if [[ "$NO_CLEAN" == "Y" ]]; then
+		exit $status
+	fi
+fi
 
 ############
 # CLEAN UP #

@@ -6,7 +6,7 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  build:
+  stress:
 
     runs-on: ubuntu-latest
 
@@ -15,4 +15,4 @@ jobs:
     - name: Nightly toolchain
       run: rustup toolchain install nightly-x86_64-unknown-linux-gnu
     - name: Stress tests
-      run: bash tests/cfg_boost_tests.sh -s
+      run: bash tests/cfg_boost_tests.sh -s 1000
