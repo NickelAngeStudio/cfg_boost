@@ -1,4 +1,4 @@
-name: ubuntu-stress
+name: cfg_boost-stress
 
 on: workflow_dispatch
 
