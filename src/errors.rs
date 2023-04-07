@@ -40,6 +40,12 @@ pub enum CfgBoostError {
 
     /// Happens when legacy syntax is incorrect
     LegacySyntaxError,
+
+    /// Happens when mixing legacy and simplifier syntax on same arm.
+    MixedSyntaxError,
+
+    /// Happens when a separator `=>` is missing between arms.
+    ContentSeparatorMissing,
 }
 
 /// Error message implementation.
@@ -59,6 +65,8 @@ impl CfgBoostError {
             CfgBoostError::WildcardArmOnTarget => format!("target_cfg! macro cannot have a `{}` wildcard pattern.", WILDCARD_ARM),
             CfgBoostError::TargetInFunction => format!("target_cfg! macro cannot be used inside a function. Use match_cfg! instead."),
             CfgBoostError::LegacySyntaxError => format!("Legacy syntax error in `{}`.", tokens),
+            CfgBoostError::MixedSyntaxError => format!("Legacy syntax and simplified syntax can't be mixed on same arm!"),
+            CfgBoostError::ContentSeparatorMissing => format!("Arm content separator `{}{}` missing!", CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1),
         }
     }
 }

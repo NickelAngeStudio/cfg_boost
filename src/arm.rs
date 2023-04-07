@@ -1,6 +1,6 @@
 use proc_macro::{TokenStream, TokenTree, Delimiter, Punct, Group, Ident, Span};
 
-use crate::{errors::CfgBoostError, config::{DOC_ALIAS, is_cfg_boost_autodoc, if_docsrs_enabled}, syntax::{SyntaxTreeNode}, CfgBoostMacroSource};
+use crate::{errors::CfgBoostError, config::{DOC_ALIAS, is_cfg_boost_autodoc, if_docsrs_enabled}, syntax::{SyntaxTreeNode, AND_SYMBOL, OR_SYMBOL, NEGATIVE_SYMBOL}, CfgBoostMacroSource};
 
 /// Target arm separator
 pub(crate) const ARM_SEPARATOR : char = ',';
@@ -128,9 +128,20 @@ impl TargetArm {
             },
             TokenTree::Punct(punct) => match punct.as_char() {      // Verify syntax key symbol
                 LEGACY_ARM => {
+                    if !arm.arm_ts.is_empty() {
+                        panic!("{}", CfgBoostError::MixedSyntaxError.message(""));  // Mixed syntax error
+                    }
                     arm.arm_type = TargetArmType::Legacy;
                     arm.arm_ts.extend(TokenStream::from(token));
                 },
+                NEGATIVE_SYMBOL | AND_SYMBOL | OR_SYMBOL => {   // Verify if mixed syntax
+                    match arm.arm_type{
+                        TargetArmType::Legacy => panic!("{}", CfgBoostError::MixedSyntaxError.message("")),  // Mixed syntax error
+                        _ => arm.arm_ts.extend(TokenStream::from(token)),
+                    }
+
+                },
+                ARM_SEPARATOR => panic!("{}", CfgBoostError::ContentSeparatorMissing.message("")),  // Arm content separator error
                 CONTENT_SEPARATOR_0 | CONTENT_SEPARATOR_1 => {},    // Ignore tokens
                 _ => arm.arm_ts.extend(TokenStream::from(token)),
             },

@@ -12,10 +12,10 @@ pub(crate) type Node = Rc<SyntaxTreeNode>;
 pub(crate) const NEGATIVE_SYMBOL : char = '!';
 
 /// Symbol for AND.
-const AND_SYMBOL : char = '&';
+pub(crate) const AND_SYMBOL : char = '&';
 
 /// Symbol for OR.
-const OR_SYMBOL : char = '|';
+pub(crate) const OR_SYMBOL : char = '|';
 
 
 /// Syntax tree node used to parse attribute tokens.
