@@ -1,4 +1,4 @@
-use crate::arm::{ARM_SEPARATOR, CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1, WILDCARD_ARM};
+use crate::arm::{ARM_SEPARATOR, CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1, WILDCARD_ARM, MODIFIER_ACTIVATE, MODIFIER_DEACTIVATE};
 
 /// Possible cfg_boost errors.
 pub enum CfgBoostError {
@@ -46,6 +46,19 @@ pub enum CfgBoostError {
 
     /// Happens when a separator `=>` is missing between arms.
     ContentSeparatorMissing,
+
+    /// Happens when a modifier `+` or `-` isn't the first character of arm.
+    ModifierNotFirst,
+
+    /// Happens when a modifier `+` or `-` is used during release compilation and not set to ignore.
+    #[allow(dead_code)]
+    ModifierPanicRelease,
+
+    /// Happens when more than 1 modifier `+` in match_cfg!.
+    MatchModifierMoreThanOneActivate,
+
+    /// Happens when using modifier `-` on wildcard arm of match_cfg!.
+    MatchDeactivatedWildArm,
 }
 
 /// Error message implementation.
@@ -67,6 +80,10 @@ impl CfgBoostError {
             CfgBoostError::LegacySyntaxError => format!("Legacy syntax error in `{}`.", tokens),
             CfgBoostError::MixedSyntaxError => format!("Legacy syntax and simplified syntax can't be mixed on same arm!"),
             CfgBoostError::ContentSeparatorMissing => format!("Arm content separator `{}{}` missing!", CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1),
+            CfgBoostError::ModifierNotFirst => format!("Arm modifiers `{}` and `{}` must be the first character of arm!", MODIFIER_ACTIVATE, MODIFIER_DEACTIVATE),
+            CfgBoostError::ModifierPanicRelease => format!("Arm modifiers `{}` and `{}` will panic during release compilation by default! This behaviour can be changed. See https://github.com/NickelAngeStudio/cfg_boost/wiki/Syntax#modifiers", MODIFIER_ACTIVATE, MODIFIER_DEACTIVATE),
+            CfgBoostError::MatchModifierMoreThanOneActivate => format!("match_cfg! cannot have more than one `{}` modifier!", MODIFIER_ACTIVATE),
+            CfgBoostError::MatchDeactivatedWildArm => format!("match_cfg! cannot deactivate wildcard arm with `{}` modifier!", MODIFIER_DEACTIVATE),
         }
     }
 }

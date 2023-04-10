@@ -1,6 +1,9 @@
-use proc_macro::{TokenStream, TokenTree, Delimiter, Punct, Group, Ident, Span};
+use proc_macro::{TokenStream, TokenTree, Delimiter};
 
 use crate::{errors::CfgBoostError, config::{DOC_ALIAS, is_cfg_boost_autodoc, if_docsrs_enabled}, syntax::{SyntaxTreeNode, AND_SYMBOL, OR_SYMBOL, NEGATIVE_SYMBOL}, CfgBoostMacroSource};
+
+#[allow(unused_imports)]
+use crate::config::{get_release_modifier_behaviour, ReleaseModifierBehaviour};
 
 /// Target arm separator
 pub(crate) const ARM_SEPARATOR : char = ',';
@@ -13,8 +16,17 @@ pub(crate) const CONTENT_SEPARATOR_1 : char = '>';
 pub(crate) const WILDCARD_ARM : char = '_';
 pub(crate) const WILDCARD_ARM_STR : &str = "_";
 
-/// Legacy branch detector
+/// Legacy arm detector
 pub(crate) const LEGACY_ARM: char = '#';
+
+/// Activate arm modifier
+pub(crate) const MODIFIER_ACTIVATE: char = '+';
+pub(crate) const MODIFIER_ACTIVATE_VALUE: &str = "all()";   // Is always true
+
+/// Deactivate arm modifier
+pub(crate) const MODIFIER_DEACTIVATE: char = '-';
+pub(crate) const MODIFIER_DEACTIVATE_VALUE: &str = "any()";   // Is always false
+
 
 
 /// Enumeration of possible arm types
@@ -30,10 +42,24 @@ pub(crate) enum TargetArmType {
     Wildcard,
 }
 
+/// Enumeration of possible arm modifiers
+#[derive(Debug, Clone, Copy)]
+pub(crate) enum TargetArmModifier {
+    /// No modifier on target arm
+    None,
+
+    /// Activate (+) modifier.
+    Activate,
+
+    /// Deactivate (-) modifier.
+    Deactivate,
+}
+
 /// Struct used that contains an arm type, it's attributes and content.
 #[derive(Clone)]
 pub(crate) struct TargetArm {
     pub arm_type : TargetArmType,   // Arm type
+    pub modifier : TargetArmModifier,   // Arm modifier
     pub arm_ts : TokenStream,       // Left side tokenstream
     pub pred_ts : TokenStream,      // Predicates tokenstream
     pub cfg_ts : TokenStream,       // Tokenstream for #[cfg]
@@ -44,15 +70,15 @@ pub(crate) struct TargetArm {
 impl ToString for TargetArm {
     /// Transform self into string.
     fn to_string(&self) -> String {
-        format!("arm_type : {:?}, arm_ts : {}, pred_ts : {}, cfg_ts : {}, attr_ts : {},  content : {}", 
-            self.arm_type, self.arm_ts.to_string(), self.pred_ts.to_string(), self.cfg_ts.to_string(), self.attr_ts.to_string(), self.content.to_string())
+        format!("arm_type : {:?}\nmodifier : {:?}\narm_ts : {}\npred_ts : {}\ncfg_ts : {}\nattr_ts : {}\ncontent : {}", 
+            self.arm_type, self.modifier, self.arm_ts.to_string(), self.pred_ts.to_string(), self.cfg_ts.to_string(), self.attr_ts.to_string(), self.content.to_string())
     }
 }
 
 impl TargetArm {
     /// Create a new empty normal arm.
     pub fn new() -> TargetArm {
-        TargetArm { arm_type : TargetArmType::Simplified, arm_ts : TokenStream::new(), pred_ts : TokenStream::new(), cfg_ts : TokenStream::new(), attr_ts : TokenStream::new(), content : TokenStream::new() }
+        TargetArm { arm_type : TargetArmType::Simplified, modifier:TargetArmModifier::None, arm_ts : TokenStream::new(), pred_ts : TokenStream::new(), cfg_ts : TokenStream::new(), attr_ts : TokenStream::new(), content : TokenStream::new() }
     }
 
     /// Extract target arms into a vector from macro source.
@@ -81,20 +107,26 @@ impl TargetArm {
                 if left_side {  // Extract for left side (attributes)
                     Self::extract_attributes(&mut arm, token);
                 } else {    // Extract for right side (content)
-                    Self::extract_content(&mut arm, &mut arms, token, &mut left_side, macro_src);
+                    Self::extract_content(&mut arm, &mut arms, token, &mut left_side);
                 }
             }
         }
 
         // 2. Add last arm if it were not added (missing `,` at last entry is not an error.)
         if !left_side {
-            Self::add_arm(&mut arms, &mut arm, &mut left_side, macro_src);
+            Self::add_arm(&mut arms, &mut arm, &mut left_side);
         }
 
-        // 3. Verify arms integrity before returning them
+        // 3. Verify arms integrity.
         Self::verify_arms_integrity(macro_src, &mut arms);
 
-        // 4. Return arms vector
+        // 4. Generate arms predicates
+        Self::generate_arms_predicate(macro_src, &mut arms);
+
+        // Print arms
+        //arms.iter().for_each(|arm| println!("\nArm\n{}", arm.to_string()));
+
+        // 5. Return arms vector
         arms
 
     }
@@ -127,6 +159,45 @@ impl TargetArm {
 
             },
             TokenTree::Punct(punct) => match punct.as_char() {      // Verify syntax key symbol
+                MODIFIER_ACTIVATE => {
+                    if !arm.arm_ts.is_empty() {
+                        panic!("{}", CfgBoostError::ModifierNotFirst.message(""));  // Modifier is not first character
+                    }
+                    // Debug behaviour. Activate arm.
+                    #[cfg(debug_assertions)]
+                    {
+                        arm.modifier = TargetArmModifier::Activate;
+                    }
+                    // Release behaviour. Panic or Ignore.
+                    #[cfg(not(debug_assertions))]
+                    {
+                        match get_release_modifier_behaviour() {
+                            ReleaseModifierBehaviour::Panic => panic!("{}", CfgBoostError::ModifierPanicRelease.message("")),  // Modifier release panic
+                            _ => {},    // Just ignore it
+                        }
+
+                    }
+                },
+                MODIFIER_DEACTIVATE => {
+                    if !arm.arm_ts.is_empty() {
+                        panic!("{}", CfgBoostError::ModifierNotFirst.message(""));  // Modifier is not first character
+                    }
+                    // Debug behaviour. Activate arm.
+                    #[cfg(debug_assertions)]
+                    {
+                        arm.modifier = TargetArmModifier::Deactivate;
+                    }
+                    // Release behaviour. Panic or Ignore.
+                    #[cfg(not(debug_assertions))]
+                    {
+                        match get_release_modifier_behaviour() {
+                            ReleaseModifierBehaviour::Panic => panic!("{}", CfgBoostError::ModifierPanicRelease.message("")),  // Modifier release panic
+                            _ => {},    // Just ignore it
+                        }
+
+                    }
+
+                },
                 LEGACY_ARM => {
                     if !arm.arm_ts.is_empty() {
                         panic!("{}", CfgBoostError::MixedSyntaxError.message(""));  // Mixed syntax error
@@ -152,7 +223,7 @@ impl TargetArm {
 
     /// Extract tokens for content.
     #[inline(always)]
-    fn extract_content(arm : &mut TargetArm, arms : &mut Vec<TargetArm>, token : TokenTree, left_side : &mut bool, macro_src : CfgBoostMacroSource) {
+    fn extract_content(arm : &mut TargetArm, arms : &mut Vec<TargetArm>, token : TokenTree, left_side : &mut bool) {
 
         match token.clone() {
             TokenTree::Group(grp) => arm.content.extend(match grp.delimiter() {
@@ -166,7 +237,7 @@ impl TargetArm {
                 _ => TokenStream::from(token), // Add token to content
             }),
             TokenTree::Punct(punct) => match punct.as_char() {
-                ARM_SEPARATOR => Self::add_arm(arms, arm, left_side, macro_src),    // Add arm to vector.
+                ARM_SEPARATOR => Self::add_arm(arms, arm, left_side),    // Add arm to vector.
                 _ => arm.content.extend(TokenStream::from(token)),  // Add content to arm
             },
              // Add content to arm
@@ -239,50 +310,122 @@ impl TargetArm {
 
     /// Add arm to arms vector according to macro source.
     #[inline(always)]
-    fn add_arm(arms : &mut Vec<TargetArm>, arm : &mut TargetArm, left_side : &mut bool, macro_src : CfgBoostMacroSource){
-
-        // 1. Extend pred_ts according to arm type
-        arm.pred_ts.extend(match arm.arm_type {
-            TargetArmType::Simplified => {
-                if arm.arm_ts.is_empty() {  // Arms ts must not be empty
-                    panic!("{}", CfgBoostError::EmptyArm.message(""));
-                } 
-                let syntax_tree = SyntaxTreeNode::generate(arm.arm_ts.clone()); // Simplified predicates comes from syntax tree
-                syntax_tree.to_string().parse::<TokenStream>().unwrap()
-            },
-            TargetArmType::Legacy => {
-                if arm.arm_ts.is_empty() {  // Arms ts must not be empty
-                    panic!("{}", CfgBoostError::EmptyArm.message(""));
-                }
-                Self::extract_legacy_predicates(arm.arm_ts.clone())
-            },
-            TargetArmType::Wildcard => TokenStream::new(),  // Wildcard pred_ts stay empty
-        });
-
-        // 2. Generate cfg_ts and attr_ts according to macro source
-        match macro_src{
-            CfgBoostMacroSource::TargetMacro => {
-                arm.cfg_ts.extend(Self::generate_target_cfg_ts(Self::set_default_doc(arm.pred_ts.clone())));
-                arm.attr_ts.extend(Self::generate_target_attr_ts(arm.pred_ts.clone()));
-            },
-            CfgBoostMacroSource::MatchMacro => arm.cfg_ts.extend(Self::generate_match_cfg_ts(arm.pred_ts.clone(), arms)),
-        }
-
-        // 3. Add arm to arms vector
+    fn add_arm(arms : &mut Vec<TargetArm>, arm : &mut TargetArm, left_side : &mut bool){
+        // 1. Add arm to arms vector
         arms.push(arm.clone());
 
-        // 4. Reset arm and separator
+        // 2. Reset arm and separator
         *arm = TargetArm::new();
         *left_side = true;
 
     }
 
+    /// Generate arms predicate used to generate configuration tokenstream.
+    #[inline(always)]
+    fn generate_arms_predicate(macro_src : CfgBoostMacroSource, arms : &mut Vec<TargetArm>){
+
+        // Each macro has different predicates behaviour
+        match macro_src {
+            CfgBoostMacroSource::TargetMacro => {
+                // For each arm
+                arms.iter_mut().for_each(|arm| {
+                    // 1. Generate predicate_ts
+                    arm.pred_ts.extend(Self::generate_pred_ts(arm.arm_type, arm.arm_ts.clone()));
+
+                    // 2. Generate cfg_ts with doc according to modifier
+                    arm.cfg_ts.extend(Self::generate_target_cfg_ts(Self::set_default_doc(arm.pred_ts.clone()), arm.modifier));
+
+                    // 3. Generate attr_ts
+                    arm.attr_ts.extend(Self::generate_target_attr_ts(arm.pred_ts.clone()));
+                });
+
+            },
+            CfgBoostMacroSource::MatchMacro => {
+                // Debug behaviour. Set modifiers.
+                #[cfg(debug_assertions)]
+                {
+                    // If contains activated arm, deactivate all others
+                    if arms.iter().filter(|arm| match arm.modifier{
+                        TargetArmModifier::Activate => true,
+                        _ => false,
+                    }).count() > 0 {
+                        arms.iter_mut().for_each(|arm| match arm.modifier {
+                            TargetArmModifier::Activate => {},
+                            _ => arm.modifier = TargetArmModifier::Deactivate ,
+                        });
+                    }
+                }
+
+                // Used to accumulate tokenstream for condition. Default is all() == true
+                let mut cumul_ts = MODIFIER_ACTIVATE_VALUE.parse::<TokenStream>().unwrap();
+
+                // For each arm
+                arms.iter_mut().for_each(|arm| {
+                    // 1. Generate predicate_ts
+                    arm.pred_ts.extend(Self::generate_pred_ts(arm.arm_type, arm.arm_ts.clone()));
+
+                    // 2. Generate pred_ts from cumulatives tokenstream according to arm type
+                    let pred_ts = format!("all({},{})", cumul_ts, arm.pred_ts.clone()).parse::<TokenStream>().unwrap();
+
+                    // 3. Generate cfg_ts according to modifier and pred_ts
+                    arm.cfg_ts.extend(Self::generate_target_cfg_ts(pred_ts.clone(), arm.modifier));
+
+                    // 4. Cumulate tokenstream for arm exclusivity.
+                    cumul_ts.extend(format!(", not({})", { // Wish I could use match_cfg! here =(
+                        #[cfg(debug_assertions)]
+                        {
+                            match arm.modifier {
+                                TargetArmModifier::None => arm.pred_ts.clone(),
+                                TargetArmModifier::Activate => MODIFIER_ACTIVATE_VALUE.parse::<TokenStream>().unwrap(),
+                                TargetArmModifier::Deactivate => MODIFIER_DEACTIVATE_VALUE.parse::<TokenStream>().unwrap(),
+                            }
+                        }
+                        #[cfg(not(debug_assertions))]
+                        {
+                            arm.pred_ts.clone()
+                        }
+                    }).parse::<TokenStream>().unwrap());
+                });
+            },
+        }
+    }
+
     /// Generate #[cfg] tokenstream for target_cfg!.
     /// Return ts created.
     #[inline(always)]
-    fn generate_target_cfg_ts(pred_ts : TokenStream) -> TokenStream {
+    fn generate_target_cfg_ts(pred_ts : TokenStream, modifier : TargetArmModifier) -> TokenStream {
 
-        format!("#[cfg({})]", pred_ts.to_string()).parse::<TokenStream>().unwrap()
+        let mut pred_str = pred_ts.to_string();
+
+        // Debug behaviour. Generate cfg_ts according to modifier
+        #[cfg(debug_assertions)]
+        {
+            match modifier{
+                TargetArmModifier::Activate => pred_str = String::from(MODIFIER_ACTIVATE_VALUE),
+                TargetArmModifier::Deactivate => pred_str = String::from(MODIFIER_DEACTIVATE_VALUE),
+                _ => {}
+            }
+        }
+
+        format!("#[cfg({})]", pred_str).parse::<TokenStream>().unwrap()
+    }
+
+
+    /// Generate predicate tokenstream for arm.
+    /// Return ts created.
+    #[inline(always)]
+    fn generate_pred_ts(arm_type : TargetArmType, arm_ts : TokenStream) -> TokenStream {
+
+        match arm_type{
+            TargetArmType::Simplified => {
+                let syntax_tree = SyntaxTreeNode::generate(arm_ts); // Simplified predicates comes from syntax tree
+                syntax_tree.to_string().parse::<TokenStream>().unwrap()
+            },
+            TargetArmType::Legacy => {
+                Self::extract_legacy_predicates(arm_ts)
+            },
+            TargetArmType::Wildcard => MODIFIER_ACTIVATE_VALUE.parse::<TokenStream>().unwrap(),  // Wildcard pred_ts is MODIFIER_ACTIVATE_VALUE
+        }
 
     }
 
@@ -299,6 +442,7 @@ impl TargetArm {
 
     }
 
+    /*
     /// Generate #[cfg] tokenstream for match_cfg!.
     /// Return ts created.
     #[inline(always)]
@@ -330,6 +474,7 @@ impl TargetArm {
         ex_ts
         
     }
+    */
 
     /// Add default doc tokenstream to attributes if not present for legacy syntax.
     /// Return ts created.
@@ -341,7 +486,7 @@ impl TargetArm {
             if Self::is_set_attr_autodoc(pred_ts.clone()) { // If already set, change nothing
                 pred_ts
             } else {
-                format!("any({}, {})", DOC_ALIAS.0, pred_ts).parse::<TokenStream>().unwrap()
+                format!("any({}, {})", DOC_ALIAS, pred_ts).parse::<TokenStream>().unwrap()
             }
         } else {    // Make no changes
             pred_ts
@@ -355,7 +500,7 @@ impl TargetArm {
         for token in attr.clone() {
             match token.clone() {
                 TokenTree::Ident(ident) => {
-                    if ident.to_string().as_str().eq(DOC_ALIAS.0) {
+                    if ident.to_string().as_str().eq(DOC_ALIAS) {
                         return true;
                     }
                 },
@@ -368,11 +513,18 @@ impl TargetArm {
     }
 
 
-    /// This function make sure arms are verified for error.
+    /// This function ensure arms integrity by checking for errors.
+    /// 
+    /// Errors verified :
+    /// CfgBoostError::EmptyArm
+    /// CfgBoostError::WildcardArmOnTarget
+    /// CfgBoostError::TargetInFunction
+    /// CfgBoostError::WildcardArmMissing
+    /// CfgBoostError::MatchModifierMoreThanOneActivate
+    /// CfgBoostError::MatchDeactivatedWildArm
     #[inline(always)]
     fn verify_arms_integrity(macro_src : CfgBoostMacroSource, arms: &mut Vec<TargetArm>) {
 
-        // Verify if target_cfg! contains no wildcard and is not in function and validate that match_cfg! has a wildcard arm.
         match macro_src {
             CfgBoostMacroSource::TargetMacro => {
                 if Self::has_wild_arm(&arms){  // Single macro doesn't accept wildcard arms!
@@ -384,11 +536,30 @@ impl TargetArm {
                     if Self::is_inside_function(arm) {  
                         panic!("{}", CfgBoostError::TargetInFunction.message(""));
                     }
+                    if arm.arm_ts.is_empty() {  // Arms ts must not be empty
+                        panic!("{}", CfgBoostError::EmptyArm.message(""));
+                    } 
                 }
             },
             _ => {  
                 if !Self::has_wild_arm(&arms){  // Make sure a wildcard arm is written.
                     panic!("{}", CfgBoostError::WildcardArmMissing.message(""));
+                }
+
+                // Test for more than 1 activated arm
+                let mut activated:usize  = 0;
+
+                arms.iter().for_each(|arm| match arm.modifier {
+                    TargetArmModifier::Activate => activated += 1,  // Increment activated arms
+                    TargetArmModifier::Deactivate => match arm.arm_type{
+                        TargetArmType::Wildcard => panic!("{}", CfgBoostError::MatchDeactivatedWildArm.message("")),    // Wildcard arm cannot be deativated
+                        _ => {},
+                    },
+                    _ => {},
+                });
+
+                if activated > 1 {  // Cannot have more than 1 activated in match_cfg!
+                    panic!("{}", CfgBoostError::MatchModifierMoreThanOneActivate.message(""));
                 }
             }
         }

@@ -47,27 +47,15 @@ EXIT_ON_ERROR=$3
 # $2 = result to expect, find
 # $3+ = build arguments
 run_test() {
-	TOTAL_TESTS=$((TOTAL_TESTS+1))
-	
 	cp -r "../tests/rs/$1" "src/main.rs"  
 	result="$(cargo run $3 $4 $5 $6 $7 2>&1)"
 	
 	# Evaluate result
 	if [[ "$result" == *"$2"* ]]; then
-		TOTAL_PASSED=$((TOTAL_PASSED+1))
-		if [[ "$VERBOSE" == "Y" ]]; then
-			echo -e "\033[1;34mTEST $1\033[0m        [\033[1;32mPASS\033[0m]"
-		fi
+		test_passed $1
 	else
-		echo $result
-		if [[ "$VERBOSE" == "Y" ]]; then
-			echo -e "\033[1;34mTEST $1\033[0m        [\033[1;31mFAIL\033[0m]"
-		fi
-		if [[ "$EXIT_ON_ERROR" == "Y" ]]; then
-			exit 1
-		fi
+		test_failed $1 "$result"
 	fi
-
 }
 
 # Generate cargo documentation. $1 == 0 is without nightly
@@ -97,41 +85,44 @@ generate_doc(){
 
 # Read documentation and verify if it contains $2. $1 is used to label test.
 doc_test_has() {
-	TOTAL_TESTS=$((TOTAL_TESTS+1))
 	source=`cat target/doc/$PRJ_TEST_NAME/index.html`
 	if [[ "$source" == *"$2"* ]]; then
-		TOTAL_PASSED=$((TOTAL_PASSED+1))
-		if [[ "$VERBOSE" == "Y" ]]; then
-			echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;32mPASS\033[0m]"
-		fi
+		test_passed $1
 	else
-		if [[ "$VERBOSE" == "Y" ]]; then
-			echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;31mFAIL\033[0m]"
-			echo "$source"
-		fi
-		if [[ "$EXIT_ON_ERROR" == "Y" ]]; then
-			exit 1
-		fi
+		test_failed $1 "$source"
 	fi
 }
 
 # Read documentation and verify that it doesn't contains $2. $1 is used to label test.
 doc_test_hasnt() {
-	TOTAL_TESTS=$((TOTAL_TESTS+1))
 	source=`cat target/doc/$PRJ_TEST_NAME/index.html`
 	if [[ "$source" == *"stab portability"* ]]; then
-		if [[ "$VERBOSE" == "Y" ]]; then
-			echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;31mFAIL\033[0m]"
-			echo "$source"
-		fi
-		if [[ "$EXIT_ON_ERROR" == "Y" ]]; then
-			exit 1
-		fi
+		test_failed $1 "$source"
 	else
-		TOTAL_PASSED=$((TOTAL_PASSED+1))
-		if [[ "$VERBOSE" == "Y" ]]; then
-			echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;32mPASS\033[0m]"
-		fi
+		test_passed $1
+	fi
+}
+
+# Test passes $1 = test name
+test_passed() {
+	TOTAL_TESTS=$((TOTAL_TESTS+1))
+	
+	TOTAL_PASSED=$((TOTAL_PASSED+1))
+	if [[ "$VERBOSE" == "Y" ]]; then
+		echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;32mPASS\033[0m]"
+	fi
+}
+
+# Test failed  $1 = test name, $2 = message
+test_failed() {
+	TOTAL_TESTS=$((TOTAL_TESTS+1))
+	
+	if [[ "$VERBOSE" == "Y" ]]; then
+		echo -e "\033[1;34mTEST $(echo $1)\033[0m        [\033[1;31mFAIL\033[0m]"
+		echo "$source"
+	fi
+	if [[ "$EXIT_ON_ERROR" == "Y" ]]; then
+		exit 1
 	fi
 }
 
@@ -287,6 +278,64 @@ run_test 042.rs "Test 042 completed!"
 #T43-T44 CfgBoostError::ContentSeparatorMissing
 run_test 043.rs "Arm content separator"
 run_test 044.rs "Test 044 completed!"
+
+#T45-T46 CfgBoostError::ModifierNotFirst 
+run_test 045.rs "must be the first character of arm!"
+run_test 046.rs "Test 046 completed!"
+
+#T47-T48 CfgBoostError::MatchModifierMoreThanOneActivate
+run_test 047.rs "match_cfg! cannot have more than one"
+run_test 048.rs "Test 048 completed!"
+
+#T49-T50 CfgBoostError::MatchDeactivatedWildArm
+run_test 049.rs "match_cfg! cannot deactivate wildcard arm with"
+run_test 050.rs "Test 050 completed!"
+
+#T51-T52 CfgBoostError::ModifierPanicRelease
+result="$(cargo build --release 2>&1)"
+if [[ "$result" == *"will panic during release compilation by default!"* ]]; then
+	test_passed "051REL"
+else
+	test_failed "051REL" "$result"
+fi
+
+# Override panic default value to ignore
+echo "cfg_boost_release_modifier_behaviour = { value = \"ignore\", force = true }" >> .cargo/config.toml
+
+result="$(cargo build --release 2>&1)"
+if [[ "$result" == *"will panic during release compilation by default!"* ]]; then
+	test_failed "052REL" "$result"
+else
+	test_passed "052REL"
+fi
+
+#T53 Modifier + on target_cfg!
+run_test 053.rs "Test 053 completed!"
+
+#T54 Modifier + on match_cfg!
+run_test 054.rs "Test 054 completed!"
+
+#T55 Modifier + on meta_cfg!
+run_test 055.rs "Test 055 completed!"
+
+#T56 Modifier - on target_cfg!
+run_test 056.rs "Test 056 completed!"
+
+#T57 Modifier - on match_cfg!
+run_test 057.rs "Test 057 completed!"
+
+#T58 Modifier - on meta_cfg!
+run_test 058.rs "Test 058 completed!"
+
+#T59 Modifier + and - on target_cfg!
+run_test 059.rs "Test 059 completed!"
+
+#T60 Modifier + and - on match_cfg!
+run_test 060.rs "Test 060 completed!"
+
+#T61 Modifier + and - on meta_cfg!
+run_test 061.rs "Test 061 completed!"
+
 
 #########
 # TOTAL #
