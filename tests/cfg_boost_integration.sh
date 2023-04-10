@@ -288,6 +288,37 @@ run_test 042.rs "Test 042 completed!"
 run_test 043.rs "Arm content separator"
 run_test 044.rs "Test 044 completed!"
 
+#T45-46 CfgBoostError::ModifierNotFirst 
+run_test 045.rs "must be the first character of arm!"
+run_test 046.rs "Test 046 completed!"
+
+
+
+#T47-48 CfgBoostError::ModifierPanicRelease
+
+#T49-50 CfgBoostError::MatchModifierMoreThanOneActivate
+
+#T51-52 CfgBoostError::MatchDeactivatedWildArm
+
+#T53 Modifier + on target_cfg!
+
+#T54 Modifier + on match_cfg!
+
+#T55 Modifier + on meta_cfg!
+
+#T53 Modifier - on target_cfg!
+
+#T54 Modifier - on match_cfg!
+
+#T55 Modifier - on meta_cfg!
+
+#T56 Modifier + and - on target_cfg!
+
+#T57 Modifier + and - on match_cfg!
+
+#T58 Modifier + and - on meta_cfg!
+
+
 #########
 # TOTAL #
 #########
