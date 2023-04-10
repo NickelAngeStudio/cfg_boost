@@ -1,25 +1,28 @@
-// Test 057 : Modifier - on match_cfg!
+// Test 060 : Modifier + and - on match_cfg!
 use cfg_boost::{ match_cfg };
 
 
 fn foo1() -> String {
 	match_cfg! {
 		- #[cfg(all())] => String::from(""),
-		_ => String::from("Test"),
+		+ #[cfg(any())] => String::from("Test"),
+		_ => String::from(""),
 	}
 }
 
 fn foo2() -> String {
 	match_cfg! {
 		- #[cfg(all())] => String::from(""),
-		_ => String::from("057"),
+		+ #[cfg(any())] => String::from("060"),
+		_ => String::from(""),
 	}
 }
 
 fn foo3() -> String {
 	match_cfg! {
 		- #[cfg(all())] => String::from(""),
-		_ => String::from("completed"),
+		+ #[cfg(any())] => String::from("completed"),
+		_ => String::from(""),
 	}
 }
 

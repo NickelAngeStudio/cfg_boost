@@ -1,20 +1,28 @@
-// Test 044 : CfgBoostError::ContentSeparatorMissing corrected.
-use cfg_boost::{ target_cfg };
+// Test 054 : Modifier + on match_cfg!
+use cfg_boost::{ match_cfg };
 
 
-target_cfg! {
-
-	linux => {},
-	#[cfg(unix)] => {
-		pub fn foo() -> String {
-			String::from("Test 044 completed!")
-		}
+fn foo1() -> String {
+	match_cfg! {
+		+ #[cfg(any())] => String::from("Test"),
+		_ => String::from(""),
 	}
-
 }
 
+fn foo2() -> String {
+	match_cfg! {
+		+ #[cfg(any())] => String::from("054"),
+		_ => String::from(""),
+	}
+}
 
+fn foo3() -> String {
+	match_cfg! {
+		#[cfg(all())] => String::from("failed"),
+		+ _ => String::from("completed"),
+	}
+}
 
 fn main() {
-    println!("{}", foo());
+    println!("{} {} {}!", foo1(), foo2(), foo3());
 }

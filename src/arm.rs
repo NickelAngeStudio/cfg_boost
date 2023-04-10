@@ -371,7 +371,20 @@ impl TargetArm {
                     arm.cfg_ts.extend(Self::generate_target_cfg_ts(pred_ts.clone(), arm.modifier));
 
                     // 4. Cumulate tokenstream for arm exclusivity.
-                    cumul_ts.extend(format!(", not({})", arm.pred_ts.clone()).parse::<TokenStream>().unwrap());
+                    cumul_ts.extend(format!(", not({})", { // Wish I could use match_cfg! here =(
+                        #[cfg(debug_assertions)]
+                        {
+                            match arm.modifier {
+                                TargetArmModifier::None => arm.pred_ts.clone(),
+                                TargetArmModifier::Activate => MODIFIER_ACTIVATE_VALUE.parse::<TokenStream>().unwrap(),
+                                TargetArmModifier::Deactivate => MODIFIER_DEACTIVATE_VALUE.parse::<TokenStream>().unwrap(),
+                            }
+                        }
+                        #[cfg(not(debug_assertions))]
+                        {
+                            arm.pred_ts.clone()
+                        }
+                    }).parse::<TokenStream>().unwrap());
                 });
             },
         }
