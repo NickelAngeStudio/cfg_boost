@@ -27,6 +27,9 @@ pub(crate) const MODIFIER_ACTIVATE_VALUE: &str = "all()";   // Is always true
 pub(crate) const MODIFIER_DEACTIVATE: char = '-';
 pub(crate) const MODIFIER_DEACTIVATE_VALUE: &str = "any()";   // Is always false
 
+/// Panic arm modifier used to see arm parameters
+pub(crate) const MODIFIER_PANIC: char = '@'; 
+
 
 
 /// Enumeration of possible arm types
@@ -53,6 +56,9 @@ pub(crate) enum TargetArmModifier {
 
     /// Deactivate (-) modifier.
     Deactivate,
+
+    /// Panic (@) modifier.
+    Panic,
 }
 
 /// Struct used that contains an arm type, it's attributes and content.
@@ -70,8 +76,8 @@ pub(crate) struct TargetArm {
 impl ToString for TargetArm {
     /// Transform self into string.
     fn to_string(&self) -> String {
-        format!("arm_type : {:?}\nmodifier : {:?}\narm_ts : {}\npred_ts : {}\ncfg_ts : {}\nattr_ts : {}\ncontent : {}", 
-            self.arm_type, self.modifier, self.arm_ts.to_string(), self.pred_ts.to_string(), self.cfg_ts.to_string(), self.attr_ts.to_string(), self.content.to_string())
+        format!("Arm : {}\nSyntax : {:?}\nModifier : {:?}\nPredicates : {}\n#[cfg()] : {}\n#[cfg_attr()] : {}\nContent : {}", 
+        self.arm_ts.to_string(), self.arm_type, self.modifier, self.pred_ts.to_string(), self.cfg_ts.to_string(), self.attr_ts.to_string(), self.content.to_string())
     }
 }
 
@@ -123,14 +129,36 @@ impl TargetArm {
         // 4. Generate arms predicates
         Self::generate_arms_predicate(macro_src, &mut arms);
 
-        // Print arms
-        //arms.iter().for_each(|arm| println!("\nArm\n{}", arm.to_string()));
+        // 5. Panic! for arms with @
+        Self::panic_arms(&arms);
 
-        // 5. Return arms vector
+        // 6. Return arms vector
         arms
 
     }
 
+    /// Panic for arms with @.
+    #[inline(always)] 
+    fn panic_arms(arms : &Vec<TargetArm>) {
+        
+        // Get arm with panic modifier
+        let arms = arms.iter().filter(|arm| match arm.modifier {
+            TargetArmModifier::Panic => true,
+            _ => false,
+        });
+
+        // Create arms message
+        let mut message = String::new();
+        for arm in arms {
+            message.push_str(&arm.to_string());
+        }
+
+        // Panic! if message length > 0
+        if message.len() > 0 {
+            panic!("\n*** Macro panicked because some arm have the `{}` modifier ***\n{}", MODIFIER_PANIC, message);
+        }
+
+    }
 
     /// Extract tokens for attributes.
     #[inline(always)]
@@ -159,6 +187,12 @@ impl TargetArm {
 
             },
             TokenTree::Punct(punct) => match punct.as_char() {      // Verify syntax key symbol
+                MODIFIER_PANIC => {
+                    if !arm.arm_ts.is_empty() {
+                        panic!("{}", CfgBoostError::ModifierNotFirst.message(""));  // Modifier is not first character
+                    }
+                    arm.modifier = TargetArmModifier::Panic;
+                },
                 MODIFIER_ACTIVATE => {
                     if !arm.arm_ts.is_empty() {
                         panic!("{}", CfgBoostError::ModifierNotFirst.message(""));  // Modifier is not first character
@@ -375,9 +409,9 @@ impl TargetArm {
                         #[cfg(debug_assertions)]
                         {
                             match arm.modifier {
-                                TargetArmModifier::None => arm.pred_ts.clone(),
                                 TargetArmModifier::Activate => MODIFIER_ACTIVATE_VALUE.parse::<TokenStream>().unwrap(),
                                 TargetArmModifier::Deactivate => MODIFIER_DEACTIVATE_VALUE.parse::<TokenStream>().unwrap(),
+                                _ => arm.pred_ts.clone(),
                             }
                         }
                         #[cfg(not(debug_assertions))]
@@ -441,40 +475,6 @@ impl TargetArm {
         }
 
     }
-
-    /*
-    /// Generate #[cfg] tokenstream for match_cfg!.
-    /// Return ts created.
-    #[inline(always)]
-    fn generate_match_cfg_ts(pred_ts : TokenStream, arms : &Vec<TargetArm>) -> TokenStream {
-
-        format!("#[cfg(all({},{}))]", Self::extract_match_cfg_ts_from_arms(arms).to_string(), pred_ts.to_string()).parse::<TokenStream>().unwrap()
-
-    }
-
-    /// Generate #[cfg] exclusive tokenstream from arms for match_cfg
-    /// Return ts created.
-    #[inline(always)]
-    fn extract_match_cfg_ts_from_arms(arms : &Vec<TargetArm>) -> TokenStream{
-
-        // 1. Generate pred_ts
-        let mut pred_ts = TokenStream::new();
-        for arm in arms {   // Extract pred_ts of each arm and wrap them in not()
-            pred_ts.extend(TokenStream::from(TokenTree::from(Ident::new("not", Span::call_site()))));   // Add not ident
-            pred_ts.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis, arm.pred_ts.clone()))));    // Add pred_ts in group
-            pred_ts.extend(TokenStream::from(TokenTree::from(Punct::new(ARM_SEPARATOR, proc_macro::Spacing::Alone))));  // Add , at the end
-        }
-
-        // 2. Add predicates with parenthesis in all
-        let mut ex_ts = TokenStream::from(TokenTree::from(Ident::new("all", Span::call_site())));
-        ex_ts.extend(TokenStream::from(TokenTree::from(Group::new(Delimiter::Parenthesis, pred_ts))));
-        
-        
-        // 3. Return tokenstream
-        ex_ts
-        
-    }
-    */
 
     /// Add default doc tokenstream to attributes if not present for legacy syntax.
     /// Return ts created.
