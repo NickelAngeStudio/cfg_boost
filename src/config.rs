@@ -149,13 +149,10 @@ pub fn get_cfg_boost_predicate(tokens : &str) -> Result<String, CfgBoostError> {
             match env::var(format!("{}{}", ENV_KEY_PREDICATE, cfg_opt)) {
                 Ok(cfg_value) => Ok(String::from(cfg_value.replace(PREDICATE_PLACEHOLDER, label))),
                 Err(_) =>  {
-                    // 3. Filter predefined predicates
-                    let mut pred = PREDICATES.into_iter().filter(|p| p.0.eq(cfg_opt));
-
-                    // 4. Match iterator result.
-                    match pred.next(){
+                    // 3. Find predefined predicates
+                    match PREDICATES.iter().find(|p| p.0.eq(cfg_opt)){
                         // Predicate found, return value
-                        Some(pred) => Ok(String::from(pred.1.replace(PREDICATE_PLACEHOLDER, label))),
+                        Some(pred) =>  Ok(String::from(pred.1.replace(PREDICATE_PLACEHOLDER, label))),
 
                         // Not found, raise error.
                         None => Err(CfgBoostError::InvalidConfigurationPredicate(String::from(cfg_opt))),
@@ -182,11 +179,8 @@ pub fn get_cfg_boost_alias(label : &str) -> Result<String, CfgBoostError> {
     match env::var(format!("{}{}", ENV_KEY_ALIAS, label)) {
         Ok(alias) => Ok(alias.clone()),     
         Err(_e) => {
-            // 2. Filter predefined alias
-            let mut alias = ALIASES.into_iter().filter(|a| a.0.eq(label));
-
-            // 3. Match iterator result.
-            match alias.next(){
+            // 2. Find predefined alias
+            match ALIASES.iter().find(|a| a.0.eq(label)){
                 // Alias found, return value
                 Some(alias) => Ok(String::from(alias.1)),
 

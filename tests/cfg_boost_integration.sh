@@ -336,6 +336,10 @@ run_test 060.rs "Test 060 completed!"
 #T61 Modifier + and - on meta_cfg!
 run_test 061.rs "Test 061 completed!"
 
+#T62-T63 Modifier @
+run_test 062.rs "Macro panicked because some arm have the"
+run_test 063.rs "Test 063 completed!"
+
 
 #########
 # TOTAL #
