@@ -81,7 +81,7 @@ impl CfgBoostError {
             CfgBoostError::MixedSyntaxError => format!("Legacy syntax and simplified syntax can't be mixed on same arm!"),
             CfgBoostError::ContentSeparatorMissing => format!("Arm content separator `{}{}` missing!", CONTENT_SEPARATOR_0, CONTENT_SEPARATOR_1),
             CfgBoostError::ModifierNotFirst => format!("Arm modifiers `{}`, `{}` and `{}` must be the first character of arm!", MODIFIER_ACTIVATE, MODIFIER_DEACTIVATE, MODIFIER_PANIC),
-            CfgBoostError::ModifierPanicRelease => format!("Arm modifiers `{}` and `{}` will panic during release compilation by default! This behaviour can be changed. See https://github.com/NickelAngeStudio/cfg_boost/wiki/Syntax#modifiers", MODIFIER_ACTIVATE, MODIFIER_DEACTIVATE),
+            CfgBoostError::ModifierPanicRelease => format!("Arm modifiers `{}` and `{}` will panic during release compilation by default! This behaviour can be changed. See https://github.com/NickelAngeStudio/cfg_boost/wiki/Syntax#six-modifiers", MODIFIER_ACTIVATE, MODIFIER_DEACTIVATE),
             CfgBoostError::MatchModifierMoreThanOneActivate => format!("match_cfg! cannot have more than one `{}` modifier!", MODIFIER_ACTIVATE),
             CfgBoostError::MatchDeactivatedWildArm => format!("match_cfg! cannot deactivate wildcard arm with `{}` modifier!", MODIFIER_DEACTIVATE),
         }

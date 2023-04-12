@@ -76,7 +76,7 @@ pub(crate) struct TargetArm {
 impl ToString for TargetArm {
     /// Transform self into string.
     fn to_string(&self) -> String {
-        format!("Arm : {}\nSyntax : {:?}\nModifier : {:?}\nPredicates : {}\n#[cfg()] : {}\n#[cfg_attr()] : {}\nContent : {}", 
+        format!("\nArm : {}\nSyntax : {:?}\nModifier : {:?}\nPredicates : {}\n#[cfg()] : {}\n#[cfg_attr()] : {}\nContent : {}\n", 
         self.arm_ts.to_string(), self.arm_type, self.modifier, self.pred_ts.to_string(), self.cfg_ts.to_string(), self.attr_ts.to_string(), self.content.to_string())
     }
 }
